@@ -1,0 +1,683 @@
+---
+title: "Story2_DATA608"
+author: "Mehreen Ali Gillani"
+date: "2026-02-21"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  message = FALSE,
+  warning = FALSE,
+  fig.width = 8,           # Width in inches
+  fig.height = 5,          # Height in inches
+  fig.align = 'center',    # Center figures
+  out.width = '100%',      # Use full text width
+  dpi = 300) 
+# Load required libraries
+library(tidyverse)
+library(plotly)
+library(gridExtra)
+library(RColorBrewer)
+library(ragg)
+```
+
+# INTRODUCTION
+
+The Federal Reserve operates under a dual mandate from Congress: **maintain price stability** (control inflation) and **promote maximum employment** (maintain low unemployment). These objectives often appear contradictory—policies that cool inflation (raising interest rates) can slow economic growth and increase unemployment, while policies that boost employment (lowering rates) can fuel inflation.​
+
+*This assignment analyzes **25 years of economic data (1999-2024)** to answer a critical question: **"Has the Fed been able to fulfill the mandate given to it by Congress?"***
+
+​
+
+```{r}
+# Read the data from Python
+data <- read.csv("fed_mandate_complete_data.csv")
+data$date <- as.Date(data$date)
+
+# ============================================
+# Ensure proper data types and recalculate goal columns
+# ============================================
+
+# Convert columns to proper numeric types
+data$fed_funds_rate <- as.numeric(data$fed_funds_rate)
+data$cpi <- as.numeric(data$cpi)
+data$unemployment <- as.numeric(data$unemployment)
+data$cpi_yoy <- as.numeric(data$cpi_yoy)
+
+# Recalculate goal columns to ensure they're proper logical/numeric
+data <- data %>%
+  mutate(
+    # Ensure these are numeric first
+    cpi_yoy = as.numeric(cpi_yoy),
+    unemployment = as.numeric(unemployment),
+    
+    # Recalculate goal columns
+    inflation_goal_met = !is.na(cpi_yoy) & abs(cpi_yoy - 2) <= 1,
+    unemployment_goal_met = !is.na(unemployment) & unemployment <= 5,
+    both_goals_met = inflation_goal_met & unemployment_goal_met,
+    
+    # Convert to numeric for mean calculations (0/1)
+    inflation_goal_num = as.numeric(inflation_goal_met),
+    unemployment_goal_num = as.numeric(unemployment_goal_met),
+    both_goals_num = as.numeric(both_goals_met),
+    neither_goal_num = as.numeric(!inflation_goal_met & !unemployment_goal_met),
+    
+    year = as.numeric(year),
+    decade = as.numeric(decade)
+  )
+
+# Remove any rows with NA values for key metrics
+data_clean <- data %>% 
+  filter(!is.na(cpi_yoy), !is.na(unemployment)) %>%
+  mutate(
+    decade = floor(year/10) * 10  # Recalculate decade to ensure consistency
+  )
+
+# ============================================
+# VISUALIZATION 1: The Dual Mandate Timeline
+# ============================================
+
+# Create recession rectangles data frame
+recessions <- data.frame(
+  start = as.Date(c("2001-03-01", "2007-12-01", "2020-02-01")),
+  end = as.Date(c("2001-11-01", "2009-06-01", "2020-04-01")),
+  event = c("Dot-com Recession", "Great Recession", "COVID-19")
+)
+
+p1 <- ggplot(data_clean) +
+  # Recession shading
+  geom_rect(data = recessions, 
+            aes(xmin = start, xmax = end, ymin = -Inf, ymax = Inf, fill = event),
+            alpha = 0.2) +
+  # Main lines
+  geom_line(aes(x = date, y = fed_funds_rate, color = "Federal Funds Rate"), size = 0.8) +
+  geom_line(aes(x = date, y = unemployment, color = "Unemployment Rate"), size = 0.8) +
+  geom_line(aes(x = date, y = cpi_yoy, color = "Inflation Rate"), size = 0.8) +
+  # Target lines
+  geom_hline(yintercept = 2, linetype = "dashed", color = "darkgreen", alpha = 0.7, size = 0.8) +
+  geom_hline(yintercept = 5, linetype = "dashed", color = "orange", alpha = 0.7, size = 0.8) +
+  # Labels and theme
+  labs(title = "The Fed's Dual Mandate: 25 Years of Balancing Inflation and Unemployment",
+       subtitle = "Shaded areas indicate recessions | Dashed lines show target thresholds",
+       x = "Year",
+       y = "Rate (%)",
+       color = "Indicator",
+       fill = "Recession Period") +
+  scale_color_manual(values = c("Federal Funds Rate" = "navy",
+                                 "Unemployment Rate" = "darkgreen",
+                                 "Inflation Rate" = "red")) +
+  scale_fill_manual(values = c("Dot-com Recession" = "gray70",
+                               "Great Recession" = "gray50",
+                               "COVID-19" = "gray30")) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    plot.subtitle = element_text(size = 10, color = "gray40"),
+    legend.position = "bottom",
+    legend.box = "vertical",
+    panel.grid.minor = element_blank()
+  ) +
+  ylim(-2, 15)
+
+# Display
+print(p1)
+ggsave("visualization_1_dual_mandate_timeline.png", p1, width = 16, height = 10, dpi = 300)
+
+
+
+# ============================================
+# VISUALIZATION 2: Dot Plot with Smart Label Positioning
+# ============================================
+
+# Calculate performance by decade
+performance_decade <- data_clean %>%
+  filter(year >= 2000) %>%
+  group_by(decade) %>%
+  summarise(
+    inflation_met = mean(inflation_goal_num, na.rm = TRUE) * 100,
+    unemployment_met = mean(unemployment_goal_num, na.rm = TRUE) * 100,
+    both_met = mean(both_goals_num, na.rm = TRUE) * 100,
+    .groups = "drop"
+  )
+
+# Create a longer format for easier plotting
+performance_long <- performance_decade %>%
+  pivot_longer(cols = c(inflation_met, unemployment_met, both_met),
+               names_to = "metric", values_to = "percentage") %>%
+  mutate(
+    metric_label = case_when(
+      metric == "inflation_met" ~ "Inflation Goal",
+      metric == "unemployment_met" ~ "Unemployment Goal",
+      metric == "both_met" ~ "Both Goals"
+    ),
+    # Define label positions: left for unemployment, right for both, center for inflation
+    label_hjust = case_when(
+      metric == "unemployment_met" ~ 1.2,  # Left side
+      metric == "both_met" ~ -0.2,          # Right side
+      TRUE ~ 0.5                             # Center for inflation
+    ),
+    # Adjust vertical position slightly to avoid overlap
+    label_vjust = case_when(
+      decade == 2000 & metric == "inflation_met" ~ -1.2,
+      decade == 2000 & metric == "unemployment_met" ~ 1.2,
+      decade == 2000 & metric == "both_met" ~ -0.8,
+      decade == 2010 & metric == "inflation_met" ~ -1.2,
+      decade == 2010 & metric == "unemployment_met" ~ 1.2,
+      decade == 2010 & metric == "both_met" ~ -1.2,
+      decade == 2020 & metric == "inflation_met" ~ -1.2,
+      decade == 2020 & metric == "unemployment_met" ~ -1.2,
+      decade == 2020 & metric == "both_met" ~ 1.2,
+      TRUE ~ -0.8
+    )
+  )
+
+# Create dot plot with custom colors and smart label positioning
+p2_alt <- ggplot() +
+  # Add connecting lines (using the wide format for simplicity)
+  geom_segment(data = performance_decade,
+               aes(x = factor(decade), xend = factor(decade),
+                   y = 0, yend = inflation_met), 
+               color = "#E41A1C", alpha = 0.2, size = 1) +  # Softer red
+  geom_segment(data = performance_decade,
+               aes(x = factor(decade), xend = factor(decade),
+                   y = 0, yend = unemployment_met), 
+               color = "#4DAF4A", alpha = 0.2, size = 1) +  # Softer green
+  geom_segment(data = performance_decade,
+               aes(x = factor(decade), xend = factor(decade),
+                   y = 0, yend = both_met), 
+               color = "#984EA3", alpha = 0.2, size = 1) +  # Softer purple
+  
+  # Add points with better colors
+  geom_point(data = filter(performance_long, metric == "inflation_met"),
+             aes(x = factor(decade), y = percentage, color = "Inflation Goal"), 
+             size = 5) +
+  geom_point(data = filter(performance_long, metric == "unemployment_met"),
+             aes(x = factor(decade), y = percentage, color = "Unemployment Goal"), 
+             size = 5) +
+  geom_point(data = filter(performance_long, metric == "both_met"),
+             aes(x = factor(decade), y = percentage, color = "Both Goals"), 
+             size = 5) +
+  
+  # Add labels with custom positioning
+  geom_text(data = performance_long,
+            aes(x = factor(decade), y = percentage, 
+                label = sprintf("%.1f%%", percentage),
+                hjust = label_hjust, vjust = label_vjust,
+                color = metric_label),
+            size = 3.5, show.legend = FALSE) +
+  
+  # Labels and theme
+  labs(title = "Fed Mandate Performance by Decade",
+       subtitle = "Height shows % of months meeting each goal",
+       x = "Decade",
+       y = "Percentage of Months Meeting Goal (%)",
+       color = "Performance Metric") +
+  
+  # Custom color palette
+  scale_color_manual(values = c("Inflation Goal" = "darkred",      # Bright red
+                                 "Unemployment Goal" = "darkgreen",  # Bright green
+                                 "Both Goals" = "#984EA3")) +      # Bright purple
+  
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 13, color = "gray40"),
+    axis.title = element_text(size = 13),
+    axis.text = element_text(size = 13),
+    legend.position = "bottom",
+    legend.text = element_text(size = 13),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_line(color = "gray90", linetype = "dotted"),
+    plot.margin = margin(10, 30, 10, 30)  # Extra margin for labels
+  ) +
+  ylim(0, 100) +
+  scale_x_discrete(expand = expansion(mult = 0.15))  # More padding for labels
+
+print(p2_alt)
+ggsave("visualization_2_dot_plot_clean.png", p2_alt, width = 16, height = 10,units = "in", dpi = 300)
+
+# ============================================
+# VISUALIZATION 3: The Trade-off Scatter Plot
+# ============================================
+
+p3 <- ggplot(data_clean %>% filter(!is.na(cpi_yoy), !is.na(unemployment)), 
+             aes(x = unemployment, y = cpi_yoy, color = factor(decade))) +
+  geom_point(alpha = 0.6, size = 2) +
+  geom_smooth(method = "lm", se = FALSE, linetype = "dashed", size = 0.5) +
+  labs(title = "The Inflation-Unemployment Trade-off (Phillips Curve)",
+       subtitle = "Each point represents one month (1999-2024)",
+       x = "Unemployment Rate (%)",
+       y = "Inflation Rate (CPI YoY %)",
+       color = "Decade") +
+  scale_color_brewer(palette = "Set1") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    legend.position = "bottom"
+  ) +
+  geom_hline(yintercept = 2, linetype = "dotted", color = "darkgreen", alpha = 0.5) +
+  geom_vline(xintercept = 5, linetype = "dotted", color = "orange", alpha = 0.5) +
+  annotate("text", x = 3, y = 8, label = "Target Zone", color = "darkgreen", size = 3)
+
+print(p3)
+ggsave("visualization_3_phillips_curve.png", p3, width = 16, height = 10, dpi = 300)
+
+# ============================================
+# SUMMARY STATISTICS FOR YOUR STORY 
+# ============================================
+
+cat("\n", rep("=", 60), "\n", sep="")
+cat("FED MANDATE PERFORMANCE SUMMARY (1999-2024)")
+cat("\n", rep("=", 60), "\n", sep="")
+
+# Use the numeric columns for calculations
+overall <- data_clean %>%
+  summarise(
+    `Total Months` = n(),
+    `Avg Inflation` = sprintf("%.2f%%", mean(cpi_yoy, na.rm = TRUE)),
+    `Avg Unemployment` = sprintf("%.2f%%", mean(unemployment, na.rm = TRUE)),
+    `Avg Fed Funds Rate` = sprintf("%.2f%%", mean(fed_funds_rate, na.rm = TRUE)),
+    `Inflation Goal Met` = sprintf("%.1f%%", mean(inflation_goal_num, na.rm = TRUE) * 100),
+    `Unemployment Goal Met` = sprintf("%.1f%%", mean(unemployment_goal_num, na.rm = TRUE) * 100),
+    `Both Goals Met` = sprintf("%.1f%%", mean(both_goals_num, na.rm = TRUE) * 100),
+    `Neither Goal Met` = sprintf("%.1f%%", mean(neither_goal_num, na.rm = TRUE) * 100)
+  )
+
+print(overall)
+
+cat("\n", rep("=", 60), "\n", sep="")
+cat("DECADE-BY-DECADE BREAKDOWN")
+cat("\n", rep("=", 60), "\n", sep="")
+
+# Use numeric columns for decade summary
+decade_summary <- data_clean %>%
+  filter(decade >= 2000) %>%
+  group_by(decade) %>%
+  summarise(
+    `Avg Inflation` = sprintf("%.2f%%", mean(cpi_yoy, na.rm = TRUE)),
+    `Avg Unemployment` = sprintf("%.2f%%", mean(unemployment, na.rm = TRUE)),
+    `Inflation Goal` = sprintf("%.1f%%", mean(inflation_goal_num, na.rm = TRUE) * 100),
+    `Unemployment Goal` = sprintf("%.1f%%", mean(unemployment_goal_num, na.rm = TRUE) * 100),
+    `Both Goals` = sprintf("%.1f%%", mean(both_goals_num, na.rm = TRUE) * 100),
+    .groups = "drop"
+  )
+
+print(decade_summary)
+
+cat("\n All visualizations created successfully!\n")
+```
+
+```{r}
+# ============================================
+
+# VISUALIZATION 4: Lagged Effects Analysis
+# ============================================
+
+# Calculate cross-correlations at different lags
+max_lag <- 24  # Look at up to 24 months of lags
+
+# Function to calculate correlation at different lags
+lag_correlation <- function(x, y, max_lag) {
+  result <- data.frame(
+    lag = -max_lag:max_lag,
+    correlation = NA
+  )
+  
+  for (i in -max_lag:max_lag) {
+    if (i < 0) {
+      # Negative lag: y leads x (x lags behind y)
+      y_lead <- lead(y, abs(i))
+      result[result$lag == i, "correlation"] <- cor(x, y_lead, use = "complete.obs")
+    } else if (i > 0) {
+      # Positive lag: x leads y (y lags behind x)
+      x_lead <- lead(x, i)
+      result[result$lag == i, "correlation"] <- cor(x_lead, y, use = "complete.obs")
+    } else {
+      # Zero lag: contemporaneous correlation
+      result[result$lag == 0, "correlation"] <- cor(x, y, use = "complete.obs")
+    }
+  }
+  return(result)
+}
+
+# Calculate lag correlations
+fed_inflation_lag <- lag_correlation(data_clean$fed_funds_rate, 
+                                      data_clean$cpi_yoy, max_lag)
+fed_unemployment_lag <- lag_correlation(data_clean$fed_funds_rate, 
+                                         data_clean$unemployment, max_lag)
+
+# Add relationship type
+fed_inflation_lag$relationship <- "Fed Rate vs Inflation"
+fed_unemployment_lag$relationship <- "Fed Rate vs Unemployment"
+
+# Combine
+lag_data <- rbind(fed_inflation_lag, fed_unemployment_lag)
+
+# Find peak lags
+peak_lags <- lag_data %>%
+  group_by(relationship) %>%
+  slice_max(abs(correlation), n = 1) %>%
+  mutate(
+    direction = ifelse(lag > 0, "Fed leads", ifelse(lag < 0, "Fed lags", "Simultaneous")),
+    lag_months = abs(lag),
+    lag_text = paste0("Peak at lag ", lag_months, " months\n(Fed ", direction, ")")
+  )
+
+# Create heatmap
+p4 <- ggplot(lag_data, aes(x = lag, y = relationship, fill = correlation)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "red", mid = "white", high = "blue", 
+                       midpoint = 0, limit = c(-1, 1),
+                       name = "Correlation") +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "black", size = 0.5) +
+  geom_text(data = peak_lags, 
+            aes(x = lag, y = relationship, label = sprintf("%.2f", correlation)),
+            color = "black", fontface = "bold", size = 4) +
+  labs(title = "When Do Fed Actions Show Their Effect?",
+       subtitle = "Cross-correlation at different time lags | Positive lag = Fed rate change comes first",
+       x = "Lag (months) - Positive means Fed rate leads",
+       y = "",
+       caption = "Interpretation: Positive lag means Fed rate change precedes the effect") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    plot.subtitle = element_text(size = 10, color = "gray40"),
+    axis.text.y = element_text(size = 11),
+    legend.position = "bottom",
+    legend.key.width = unit(2, "cm")
+  ) +
+  scale_x_continuous(breaks = seq(-24, 24, 6))
+
+print(p4)
+#ggsave("visualization_4_lag_analysis.png", p4, width = 16, height = 9, dpi = 300)
+
+```
+
+```{r}
+# ============================================
+# VISUALIZATION 5: Rate Hike Episodes Analysis
+# ============================================
+
+# Load lubridate explicitly
+library(lubridate)
+
+# Select major hiking episodes
+hiking_episodes <- data.frame(
+  episode = c("2004-2006 Tightening", "2015-2018 Normalization", "2022-2023 Inflation Fight"),
+  start_date = as.Date(c("2004-06-01", "2015-12-01", "2022-03-01")),
+  end_date = as.Date(c("2006-06-01", "2018-12-01", "2023-07-01"))
+)
+
+# Create event study data
+event_study <- data.frame()
+
+for(i in 1:nrow(hiking_episodes)) {
+  episode <- hiking_episodes[i, ]
+  cat("Processing:", episode$episode, "\n")
+  
+  # Filter data for this episode
+  episode_data <- data_clean %>%
+    filter(date >= episode$start_date - 365,  # 12 months before
+           date <= episode$start_date + 730)   # 24 months after
+  
+  if(nrow(episode_data) > 0) {
+    episode_data <- episode_data %>%
+      mutate(
+        # Calculate months since start
+        months_since_start = as.numeric(difftime(date, episode$start_date, units = "days")) / 30.44,
+        episode = episode$episode
+      )
+    
+    event_study <- bind_rows(event_study, episode_data)
+  }
+}
+
+# Check if we have data
+if(nrow(event_study) > 0) {
+  # Normalize values to start of episode
+  event_study_normalized <- event_study %>%
+    group_by(episode) %>%
+    mutate(
+      # Find the index at month 0 (closest to start)
+      start_idx = which.min(abs(months_since_start)),
+      fed_start = fed_funds_rate[start_idx],
+      cpi_start = cpi[start_idx],
+      unemp_start = unemployment[start_idx],
+      
+      # Create normalized values
+      fed_norm = (fed_funds_rate / fed_start) * 100,
+      cpi_norm = (cpi / cpi_start) * 100,
+      unemp_norm = (unemployment / unemp_start) * 100
+    ) %>%
+    filter(months_since_start >= -11, months_since_start <= 23)  # Clean range
+  
+  # Create the plot
+  p5 <- ggplot(event_study_normalized, aes(x = months_since_start, color = episode)) +
+    geom_line(aes(y = fed_norm, linetype = "Fed Funds Rate"), size = 1) +
+    geom_line(aes(y = cpi_norm, linetype = "CPI (Inflation)"), size = 1) +
+    geom_line(aes(y = unemp_norm, linetype = "Unemployment"), size = 1) +
+    geom_vline(xintercept = 0, linetype = "dashed", color = "black", alpha = 0.5) +
+    labs(title = "What Happens After the Fed Starts Raising Rates?",
+         subtitle = "Indexed to 100 at start of hiking cycle",
+         x = "Months Since First Rate Hike",
+         y = "Index (Start of Hike = 100)",
+         color = "Hiking Episode",
+         linetype = "Indicator") +
+    scale_x_continuous(breaks = seq(-12, 24, 6)) +
+    scale_color_brewer(palette = "Set1") +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(size = 14, face = "bold"),
+      plot.subtitle = element_text(size = 10, color = "gray40"),
+      legend.position = "bottom",
+      legend.box = "vertical"
+    ) +
+    geom_hline(yintercept = 100, linetype = "dotted", alpha = 0.3)
+  
+  print(p5)
+  ggsave("visualization_5_hiking_episodes.png", p5, width = 18, height = 10, dpi = 300)
+  
+} else {
+  print("Not enough data for episode analysis")
+}
+
+```
+
+### The Ripple Effect: How Fed Policy Propagates Through the Economy
+
+```{r lag-analysis, echo=FALSE, message=FALSE, warning=FALSE}
+# Create lagged versions of variables
+lead_lag_data <- data_clean %>%
+  select(date, fed_funds_rate, cpi_yoy, unemployment) %>%
+  mutate(
+    # Fed leads (Fed rate now vs. future inflation/unemployment)
+    fed_lead_6m_inflation = lead(cpi_yoy, 6),
+    fed_lead_12m_inflation = lead(cpi_yoy, 12),
+    fed_lead_6m_unemp = lead(unemployment, 6),
+    fed_lead_12m_unemp = lead(unemployment, 12),
+    
+    # Fed lags (past inflation/unemployment vs. current Fed rate)
+    inflation_lag_6m = lag(cpi_yoy, 6),
+    inflation_lag_12m = lag(cpi_yoy, 12),
+    unemp_lag_6m = lag(unemployment, 6),
+    unemp_lag_12m = lag(unemployment, 12)
+  )
+
+# Create scatter plot matrix
+library(GGally)
+
+# Select relevant columns for matrix
+matrix_data <- lead_lag_data %>%
+  select(
+    `Fed Rate` = fed_funds_rate,
+    `Inflation (current)` = cpi_yoy,
+    `Unemployment (current)` = unemployment,
+    `Inflation in 12mo` = fed_lead_12m_inflation,
+    `Unemployment in 12mo` = fed_lead_12m_unemp
+  ) %>%
+  na.omit()
+
+# Custom colors for the plot
+custom_colors <- c("#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00")
+
+# Create the plot with updated colors and sizes
+p6 <- ggpairs(matrix_data,
+              title = "Lead-Lag Relationships: Fed Actions and Economic Outcomes",
+              
+              # Upper triangle (correlations)
+              upper = list(
+                continuous = wrap("cor", 
+                                  size = 6,           # Larger correlation text
+                                  color = "black",    # Black text
+                                  fontface = "bold")  # Bold text
+              ),
+              
+              # Lower triangle (scatter plots)
+              lower = list(
+                continuous = wrap("points", 
+                                  alpha = 0.6,        # Slightly transparent
+                                  size = 1.5,         # Larger points
+                                  color = "#1f77b4")  # Nice blue color
+              ),
+              
+              # Diagonal (density plots)
+              diag = list(
+                continuous = wrap("barDiag", 
+                                  bins = 30,
+                                  fill = "#E41A1C",   # Red fill
+                                  color = "black",    # Black outline
+                                  alpha = 0.7)        # Slight transparency
+              )
+) +
+  
+theme_minimal() 
+
+# Save for PPT with high resolution
+ggsave("ppt_lead_lag_matrix_large.png", 
+       plot = p6, 
+       width = 16, 
+       height = 14, 
+       units = "in", 
+       dpi = 300, 
+       bg = "white")
+
+print(p6)
+ 
+```
+
+### The Fed's casual chain
+
+```{r}
+# ============================================
+# VISUALIZATION 7: Annotated Timeline Showing Causal Chain 
+# ============================================
+
+# Extend data through 2008 to show the full cycle
+p7_data <- data_clean %>% 
+  filter(date >= as.Date("2003-09-01"), year(date) <= 2008)  # Extended to 2008
+
+# Find the exact peak values for accurate label placement
+peak_inflation_date <- p7_data$date[which.max(p7_data$cpi_yoy)]
+peak_inflation_value <- max(p7_data$cpi_yoy, na.rm = TRUE)
+peak_unemp_date <- p7_data$date[which.max(p7_data$unemployment)]
+peak_unemp_value <- max(p7_data$unemployment, na.rm = TRUE)
+
+# Create annotations dataframe for cleaner code
+annotations <- data.frame(
+  label = c(
+    "Fed raises rates\n(2004-2006)",
+    "Inflation peaks\n~15 months later",
+    "Unemployment rises\n~21 months later",
+    "Financial Crisis\nbegins"
+  ),
+  date = as.Date(c(
+    "2004-12-01",
+    "2005-09-01", 
+    "2006-09-01", 
+    "2008-09-15"
+  )),
+  y = c(6.2, 2.8, 6.8, 8.5),  # Repositioned: inflation label lower (2.8)
+  color = c("navy", "red", "darkgreen", "gray40"),
+  hjust = c(0.3, 0.3, 0.3, 0.5)
+)
+
+p7 <- ggplot(p7_data) +
+  # Main lines
+  geom_line(aes(x = date, y = fed_funds_rate, color = "Federal Funds Rate"), size = 1.2) +
+  geom_line(aes(x = date, y = cpi_yoy, color = "Inflation Rate"), size = 1.2) +
+  geom_line(aes(x = date, y = unemployment, color = "Unemployment Rate"), size = 1.2) +
+  
+  # Annotate the lags with arrows
+  
+  # Add vertical line for crisis
+  geom_vline(xintercept = as.Date("2008-09-15"), 
+             linetype = "dotted", color = "gray40", size = 0.8) +
+  
+  # Add labels with positioning
+  geom_label(data = annotations[1,],  # Fed rate label
+            aes(x = date, y = y, label = label),
+            fill = "navy", color = "white", alpha = 0.8,
+            size = 3.0, fontface = "bold", hjust = 0.5) +
+  
+  geom_label(data = annotations[2,],  # Inflation label (now LOWER)
+            aes(x = date, y = y, label = label),
+            fill = "red", color = "white", alpha = 0.8,
+            size = 3.0, fontface = "bold", hjust = 0.5) +
+  
+  geom_label(data = annotations[3,],  # Unemployment label
+            aes(x = date, y = y, label = label),
+            fill = "darkgreen", color = "white", alpha = 0.8,
+            size = 3.0, fontface = "bold", hjust = 0.5) +
+  
+  geom_label(data = annotations[4,],  # Crisis label
+            aes(x = date, y = y, label = label),
+            fill = "gray40", color = "white", alpha = 0.8,
+            size = 3.0, fontface = "bold", hjust = 0.5) +
+  
+  # Add subtle points at peaks for clarity
+  geom_point(data = p7_data %>% filter(date == peak_inflation_date),
+             aes(x = date, y = cpi_yoy), color = "red", size = 3) +
+  geom_point(data = p7_data %>% filter(date == peak_unemp_date),
+             aes(x = date, y = unemployment), color = "darkgreen", size = 3) +
+  
+  # Labels and theme
+  labs(title = "The Fed's Causal Chain: Rate Hikes → Lower Inflation → Higher Unemployment",
+       subtitle = "2004-2008 cycle shows typical time lags | Inflation peaks before unemployment rises",
+       x = "Year",
+       y = "Rate (%)",
+       color = "Indicator",
+       caption = "Gray arrows show causal sequence | Dotted line marks Financial Crisis") +
+  
+  scale_color_manual(values = c("Federal Funds Rate" = "navy",
+                                 "Inflation Rate" = "red",
+                                 "Unemployment Rate" = "darkgreen")) +
+  
+  scale_x_date(date_breaks = "6 months", date_labels = "%b %Y") +
+  
+theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+
+print(p7)
+
+```
+
+### Conclusion:
+
+The Fed has been a capable crisis manager but an inconsistent mandate fulfiller. The dual mandate remains an aspirational target—achievable only about a quarter of the time—rather than a consistently attainable goal.​
+
+#### **Recommendations for Policymakers**​
+
+-   Communicate the lag effect more clearly to the public​
+
+-   Set realistic expectations that both goals cannot always be met​
+
+-   Consider a flexible timeline for achieving both mandates rather than simultaneous success​
+
+*"Monetary policy is a balancing act—and the Fed walks a tightrope between inflation and unemployment every single day."*
+
+\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_

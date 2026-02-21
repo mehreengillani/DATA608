@@ -1,0 +1,117 @@
+---
+title: "Story 2 - Data 608"
+author: "Mehreen Ali Gillani"
+date: "2026-02-21"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Load necessary libraries
+# Install packages
+#install.packages(c("tidyverse", "fredr", "blsAPI", "ggplot2", "dplyr", "lubridate"))
+install.packages("blsAPI")  # For BLS data
+install.packages("fredr")   # For FRED data
+install.packages("tidyverse")  # For data manipulation and visualization
+install.packages("ggplot2")  # For plotting
+install.packages("dplyr")    # For data manipulation
+install.packages("lubridate") # For date handling
+# Load libraries
+library(tidyverse)
+library(fredr)
+library(blsAPI)
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+```
+
+```{r api-keys, include=FALSE}
+# Set FRED API key
+# Set your FRED API key
+fredr_set_key("eb94560f0005a1035b28fc946bd7c5b7")  # Replace with your actual key
+bls_api_key <- "5ed9d556f12844ae8a9dc699bf6ae3c8"  # Replace with your actual key
+```
+```{r data-sources}
+library(blsAPI)
+
+# Now test the BLS API connection
+test_bls <- fetch_bls_data('CUUR0000SA0', '2023', '2024', bls_api_key)
+
+if (exists("test_bls") && nrow(test_bls) > 0) {
+  print("BLS API working! Here's sample data:")
+  print(head(test_bls))
+} else {
+  print("BLS API failed - check your API key")
+}
+```
+```{r fetch-data}
+# 1. Get FED Funds Rate from FRED (uses your fredr_set_key)
+fed_funds <- fredr(
+  series_id = "FEDFUNDS",
+  observation_start = as.Date("1999-01-01"),
+  observation_end = as.Date("2024-12-31")
+) %>%
+  select(date, value) %>%
+  rename(fed_funds_rate = value)
+
+# 2. Function to fetch BLS data (uses your bls_api_key)
+fetch_bls_data <- function(series_id, start_year, end_year, api_key = NULL) {
+  payload <- list(
+    'seriesid' = series_id,
+    'startyear' = start_year,
+    'endyear' = end_year
+  )
+  
+  if (!is.null(api_key)) {
+    payload$registrationkey <- bls_api_key  # Your BLS key gets used here
+  }
+  
+  response <- blsAPI(payload, api_version = 2)
+  
+  df <- response %>%
+    mutate(
+      month_num = as.numeric(gsub("M", "", period)),
+      date = as.Date(paste0(year, "-", month_num, "-01")),
+      value = as.numeric(value)
+    ) %>%
+    select(date, value) %>%
+    arrange(date)
+  
+  return(df)
+}
+
+# 3. Fetch CPI and Unemployment data (passes your bls_api_key to the function)
+cpi_data <- fetch_bls_data('CUUR0000SA0', '1999', '2024', bls_api_key) %>%
+  rename(cpi = value)
+
+unemp_data <- fetch_bls_data('LNS14000000', '1999', '2024', bls_api_key) %>%
+  rename(unemployment = value)
+
+# 4. Fetch Unemployment data
+# Series ID: LNS14000000
+unemp_data <- fetch_bls_data('LNS14000000', '1999', '2024', bls_api_key) %>%
+  rename(unemployment = value)
+
+# 5. Merge all datasets
+economic_data <- fed_funds %>%
+  full_join(cpi_data, by = "date") %>%
+  full_join(unemp_data, by = "date") %>%
+  arrange(date)
+
+# Calculate Year-over-Year inflation rate
+economic_data <- economic_data %>%
+  mutate(
+    cpi_yoy = (cpi / lag(cpi, 12) - 1) * 100,  # Year-over-year inflation %
+    year = year(date),
+    quarter = quarter(date),
+    month = month(date)
+  )
+
+# View the combined data
+glimpse(economic_data)
+summary(economic_data)
+```
+
