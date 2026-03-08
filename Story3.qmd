@@ -1,0 +1,1043 @@
+---
+title: "Do Stricter Firearm Control Laws Help Reduce Firearm Mortality?"
+author: "**Mehreen Ali Gillani**"
+format:
+  html:
+    self-contained: true
+    page-layout: full
+    fig-width: 12
+    fig-height: 6
+    echo: false
+    warning: false
+---
+
+```{python}
+#| include: false
+#  Import necessary libraries
+import pandas as pd
+import numpy as np
+import plotly.io as pio
+import seaborn as sns
+import matplotlib.pyplot as plt
+import requests
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+from bs4 import BeautifulSoup
+
+giffords_url = "https://giffords.org/lawcenter/gun-laws/scorecard/"
+headers = {'User-Agent': 'Mozilla/5.0'}
+...
+
+```
+
+```{python}
+# ============================================
+# STEP 1: Giffords scrape + hardcoded fallback
+# ============================================
+# Source: Giffords Law Center Annual Gun Law Scorecard (2023)
+# URL: https://giffords.org/lawcenter/gun-laws/scorecard/
+# Rankings reflect state gun law strictness (1 = strictest, 50 = most lax)
+from bs4 import BeautifulSoup
+
+giffords_url = "https://giffords.org/lawcenter/gun-laws/scorecard/"
+headers = {'User-Agent': 'Mozilla/5.0'}
+
+response = requests.get(giffords_url, headers=headers)
+soup = BeautifulSoup(response.text, 'html.parser')
+
+rows = soup.find_all('tr')
+giffords_data = []
+for row in rows:
+    cols = row.find_all('td')
+    if len(cols) >= 2:
+        state = cols[0].text.strip()
+        grade = cols[1].text.strip()
+        giffords_data.append({'state': state, 'grade': grade})
+
+#print(f"Rows scraped: {len(giffords_data)}")
+
+if len(giffords_data) == 0:
+    #print("Scraping failed, using hardcoded rankings...")
+    giffords_ranks = {
+        'California': 1, 'New Jersey': 2, 'Connecticut': 3, 'New York': 4,
+        'Massachusetts': 5, 'Maryland': 6, 'Hawaii': 7, 'Illinois': 8,
+        'Rhode Island': 9, 'Washington': 10, 'Colorado': 11, 'Delaware': 12,
+        'Minnesota': 13, 'Pennsylvania': 14, 'Virginia': 15, 'Vermont': 16,
+        'Oregon': 17, 'Michigan': 18, 'Nevada': 19, 'Iowa': 20,
+        'Nebraska': 21, 'North Carolina': 22, 'Wisconsin': 23, 'New Hampshire': 24,
+        'Maine': 25, 'Texas': 26, 'Florida': 27, 'Ohio': 28,
+        'Indiana': 29, 'Utah': 30, 'Arizona': 31, 'Tennessee': 32,
+        'South Carolina': 33, 'Oklahoma': 34, 'Kentucky': 35, 'Georgia': 36,
+        'Alaska': 37, 'New Mexico': 38, 'Montana': 39, 'North Dakota': 40,
+        'South Dakota': 41, 'Louisiana': 42, 'Alabama': 43, 'Missouri': 44,
+        'West Virginia': 45, 'Kansas': 46, 'Arkansas': 47, 'Mississippi': 48,
+        'Idaho': 49, 'Wyoming': 50
+    }
+    giffords_df = pd.DataFrame([
+        {'state': state, 'giffords_rank': rank}
+        for state, rank in giffords_ranks.items()
+    ])
+else:
+    giffords_df = pd.DataFrame(giffords_data)
+
+#print(giffords_df.head())
+```
+```{python}
+# ============================================
+# STEP 2: CONVERT RANK TO LIKERT
+# ============================================
+
+def rank_to_likert(rank):
+    if rank <= 10:
+        return 5, 'Strictest'
+    elif rank <= 20:
+        return 4, 'Moderately Strict'
+    elif rank <= 30:
+        return 3, 'Moderate'
+    elif rank <= 40:
+        return 2, 'Moderately Lax'
+    else:
+        return 1, 'Most Lax'
+
+giffords_df['likert_score'], giffords_df['likert_label'] = zip(
+    *giffords_df['giffords_rank'].map(rank_to_likert)
+)
+#print(giffords_df.head())
+```
+```{python}
+# ============================================
+# STEP 3: FETCH MORTALITY DATA
+# ============================================
+
+url = "https://data.cdc.gov/resource/489q-934x.json"
+df = pd.DataFrame(requests.get(url).json())
+
+firearm_df = df[
+    (df['cause_of_death'] == 'Firearm-related injury') &
+    (df['year_and_quarter'].str.startswith('2023'))
+].copy()
+
+exclude = ['overall', 'sex', 'district', 'puerto', 'guam', 'virgin', 'samoa', 'mariana', 'micronesia']
+state_cols = [c for c in df.columns if c.startswith('rate_') and not any(p in c.lower() for p in exclude)]
+
+mortality_df = pd.DataFrame([
+    {'state': col.replace('rate_', '').replace('_', ' ').title(),
+     'mortality_rate': pd.to_numeric(firearm_df[col].iloc[0], errors='coerce')}
+    for col in state_cols
+]).dropna().sort_values('mortality_rate', ascending=False).reset_index(drop=True)
+
+#print(f"Total states: {len(mortality_df)}")
+#print(mortality_df.head())
+```
+```{python}
+missing_states = {
+    'West Virginia': 19.7,
+    'Virginia': 15.3
+}
+
+for state, rate in missing_states.items():
+    if state not in mortality_df['state'].values:
+        mortality_df = pd.concat([
+            mortality_df,
+            pd.DataFrame([{'state': state, 'mortality_rate': rate}])
+        ], ignore_index=True)
+
+#print(f"Total states after fix: {len(mortality_df)}")
+```
+```{python}
+# ============================================
+# STEP 4: MERGE EVERYTHING
+# ============================================
+
+state_abbr_map = {
+    'Alabama': 'AL', 'Alaska': 'AK', 'Arizona': 'AZ', 'Arkansas': 'AR',
+    'California': 'CA', 'Colorado': 'CO', 'Connecticut': 'CT', 'Delaware': 'DE',
+    'Florida': 'FL', 'Georgia': 'GA', 'Hawaii': 'HI', 'Idaho': 'ID',
+    'Illinois': 'IL', 'Indiana': 'IN', 'Iowa': 'IA', 'Kansas': 'KS',
+    'Kentucky': 'KY', 'Louisiana': 'LA', 'Maine': 'ME', 'Maryland': 'MD',
+    'Massachusetts': 'MA', 'Michigan': 'MI', 'Minnesota': 'MN', 'Mississippi': 'MS',
+    'Missouri': 'MO', 'Montana': 'MT', 'Nebraska': 'NE', 'Nevada': 'NV',
+    'New Hampshire': 'NH', 'New Jersey': 'NJ', 'New Mexico': 'NM', 'New York': 'NY',
+    'North Carolina': 'NC', 'North Dakota': 'ND', 'Ohio': 'OH', 'Oklahoma': 'OK',
+    'Oregon': 'OR', 'Pennsylvania': 'PA', 'Rhode Island': 'RI', 'South Carolina': 'SC',
+    'South Dakota': 'SD', 'Tennessee': 'TN', 'Texas': 'TX', 'Utah': 'UT',
+    'Vermont': 'VT', 'Virginia': 'VA', 'Washington': 'WA', 'West Virginia': 'WV',
+    'Wisconsin': 'WI', 'Wyoming': 'WY'
+}
+
+# Normalize state names
+mortality_df['state'] = mortality_df['state'].str.strip().str.title()
+giffords_df['state'] = giffords_df['state'].str.strip().str.title()
+
+# Add state abbreviations
+mortality_df['state_abbr'] = mortality_df['state'].map(state_abbr_map)
+
+# Merge
+merged_df = pd.merge(mortality_df, giffords_df, on='state', how='left')
+
+# Bin summary
+bin_summary = merged_df.groupby(['likert_score', 'likert_label'])['mortality_rate'].agg(
+    ['mean', 'std', 'count']
+).reset_index().sort_values('likert_score')
+
+print("\nAverage Firearm Mortality by Law Strictness Bin:")
+print(bin_summary)
+```
+
+
+```{python}
+#| fig-cap: "5-Point Likert Scale of Gun Law Strictness"
+#| fig-width: 12
+#| fig-height: 6
+#| out-width: 100%
+# ============================================
+# SLIDE 4: LIKERT SCALE VISUALIZATION 
+# ============================================
+
+# Create a summary table for Slide 4
+likert_summary = merged_df[['state', 'state_abbr', 'likert_label']].copy()
+
+# Define custom sort order: Most Lax → Strictest
+custom_order = ['Most Lax', 'Moderately Lax', 'Moderate', 'Moderately Strict', 'Strictest']
+
+# Convert likert_label to categorical with custom order and sort
+likert_summary['likert_label'] = pd.Categorical(
+    likert_summary['likert_label'], 
+    categories=custom_order, 
+    ordered=True
+)
+likert_summary = likert_summary.sort_values('likert_label')
+
+# Color mapping for Likert bins (darker = stricter)
+bin_colors = {
+    'Most Lax': '#B2182B',              # Dark red
+    'Moderately Lax': '#e62f22',         # Orange
+    'Moderate': '#eb4239',               # Light orange
+    'Moderately Strict': '#f44e4e',      # Dark green
+    'Strictest': '#f48a8a'               # Very dark green
+}
+
+# Create color array for the Law Strictness column
+color_array = [bin_colors[label] for label in likert_summary['likert_label']]
+
+# Create an interactive table with Plotly
+fig_slide4 = go.Figure(data=[go.Table(
+    header=dict(
+        values=['<b>State</b>', '<b>Code</b>', '<b>Gun Law Strictness</b>'],
+        fill_color='#1A1A1A',
+        font=dict(color='#FFFFFF', size=16, family='Arial Black'),
+        align='left',
+        height=45
+    ),
+    cells=dict(
+        values=[
+            likert_summary['state'],
+            likert_summary['state_abbr'],
+            likert_summary['likert_label']
+        ],
+        fill_color=[
+            ['#F5F5F5' if i % 2 == 0 else '#E8E8E8' for i in range(len(likert_summary))],
+            ['#F5F5F5' if i % 2 == 0 else '#E8E8E8' for i in range(len(likert_summary))],
+            color_array
+        ],
+        font=dict(
+            color=[
+                ['#1A1A1A' for _ in range(len(likert_summary))],  # State names - black
+                ['#1A1A1A' for _ in range(len(likert_summary))],  # State codes - black
+                ['#FFFFFF' for _ in range(len(likert_summary))]   # ALL strictness labels - white
+            ],
+            size=[14, 14, 14],
+            family=['Arial', 'Arial', 'Arial Bold']
+        ),
+        align=['left', 'center', 'left'],
+        height=35
+    )
+)])
+
+# Update layout
+fig_slide4.update_layout(
+    title={
+        'text': 'Gun Law Strictness: Most Lax → Strictest',
+        'y':0.98,
+        'x':0.5,
+        'xanchor': 'center',
+        'yanchor': 'top',
+        'font': dict(size=24, color='#2E4057')
+    },
+    height=750,
+    width=900,
+    margin=dict(l=40, r=40, t=100, b=100),
+    showlegend=False,
+    paper_bgcolor='#FFFFFF',
+    plot_bgcolor='#FFFFFF'
+)
+
+# Add annotation with scale explanation
+fig_slide4.add_annotation(
+    text="<b>⬇️ Most Lax at top → Strictest at bottom ⬇️</b>",
+    xref="paper", yref="paper",
+    x=0.5, y=1.03,
+    showarrow=False,
+    font=dict(size=14, color='#4A4A4A', family='Arial'),
+    align='center'
+)
+
+# Add clean color legend at the bottom
+legend_items = [
+    "<span style='color:#B2182B; font-weight:bold'>⬤ Most Lax</span>",
+    "<span style='color:#e62f22; font-weight:bold'>⬤ Moderately Lax</span>",
+    "<span style='color:#eb4239; font-weight:bold'>⬤ Moderate</span>",
+    "<span style='color:#f44e4e; font-weight:bold'>⬤ Moderately Strict</span>",
+    "<span style='color:#f48a8a; font-weight:bold'>⬤ Strictest</span>"
+]
+
+fig_slide4.add_annotation(
+    text="    ".join(legend_items),
+    xref="paper", yref="paper",
+    x=0.5, y=0.02,
+    showarrow=False,
+    font=dict(size=13, color='#1A1A1A'),
+    align='center',
+    bgcolor='#F8F8F8',
+    bordercolor='#DDDDDD',
+    borderwidth=1,
+    borderpad=8
+)
+
+# Add subtle border around table
+fig_slide4.update_traces(
+    cells=dict(
+        line=dict(color='#CCCCCC', width=1)
+    ),
+    header=dict(
+        line=dict(color='#CCCCCC', width=1)
+    )
+)
+
+# Save as HTML
+pio.write_html(
+    fig_slide4, 
+    file='slide4_likert_scale.html',
+    config={'responsive': True, 'displayModeBar': False},
+    include_plotlyjs='cdn',
+    full_html=True
+)
+fig_slide4.show()
+```
+
+
+```{python}
+#| fig-cap: "Firearm Mortality Rates Across the United States"
+#| fig-width: 12
+#| fig-height: 6
+#| out-width: 100%
+# ============================================
+# SLIDE 5: FIREARM MORTALITY HEAT MAP WITH TOGGLE 
+# ============================================
+
+
+# Create the base figure
+fig_slide5 = px.choropleth(
+    merged_df,
+    locations='state_abbr',
+    locationmode='USA-states',
+    color='mortality_rate',
+    scope='usa',
+    color_continuous_scale='Reds',
+    labels={'mortality_rate': 'Deaths per 100,000'},
+    title='Firearm Mortality Rates by State (2023)',
+    hover_data={'state': True, 'mortality_rate': ':.1f'},
+    hover_name='state'
+)
+
+# Update layout
+fig_slide5.update_layout(
+    title={
+        'text': "America's Firearm Mortality: A State-by-State Analysis",
+        'y':0.98,
+        'x':0.5,
+        'xanchor': 'center',
+        'yanchor': 'top',
+        'font': dict(size=24, color='#2E4057')
+    },
+    geo=dict(
+        scope='usa',
+        projection=dict(type='albers usa'),
+        showlakes=True,
+        lakecolor='#FFFFFF',
+        subunitcolor='#B0B0B0'
+    ),
+    coloraxis_colorbar=dict(
+        title='Deaths per<br>100,000',
+        title_side='right',
+        tickvals=[5, 10, 15, 20, 25, 30],
+        ticktext=['5', '10', '15', '20', '25', '30']
+    ),
+    hovermode='closest',
+    height=600,
+    width=1000
+)
+
+# Create font sizes array
+font_sizes = []
+for abbr in merged_df['state_abbr']:
+    if abbr in ['CT', 'DE', 'MD', 'MA', 'NH', 'NJ', 'RI', 'VT', 'WV']:
+        font_sizes.append(7)
+    else:
+        font_sizes.append(10)
+
+# Create colors array
+text_colors = ['#FFFFFF' if rate > 15 else '#000000' for rate in merged_df['mortality_rate']]
+
+# Add state codes as scattergeo trace
+fig_slide5.add_trace(go.Scattergeo(
+    locationmode='USA-states',
+    locations=merged_df['state_abbr'],
+    text=merged_df['state_abbr'],
+    mode='text',
+    textfont=dict(
+        size=font_sizes,
+        color=text_colors,
+        family='Arial Black'
+    ),
+    showlegend=False,
+    hoverinfo='none',
+    name='State Codes',
+    visible=True
+))
+
+# SIMPLE TOGGLE BUTTON - THIS WORKS
+fig_slide5.update_layout(
+    updatemenus=[
+        dict(
+            type="buttons",
+            direction="right",
+            x=0.5,
+            y=0.98,
+            xanchor="center",
+            yanchor="top",
+            buttons=list([
+                dict(
+                    label="Show State Codes",
+                    method="update",
+                    args=[{"visible": [True, True]}]  # [choropleth, all codes]
+                ),
+                dict(
+                    label="Hide State Codes",
+                    method="update",
+                    args=[{"visible": [True, False]}]  # [choropleth, no codes]
+                )
+            ]),
+        )
+    ]
+)
+
+# Add annotation for data source
+fig_slide5.add_annotation(
+    text="Source: CDC WISQARS (Age-adjusted rates, 2023)",
+    xref="paper", yref="paper",
+    x=0.5, y=0.02,
+    showarrow=False,
+    font=dict(size=12, color='#666666'),
+    align='center'
+)
+
+# Add this before saving
+fig_slide5.update_layout(
+    autosize=True,
+    width=None,  # Remove fixed width
+    height=None,  # Remove fixed height
+    margin=dict(l=10, r=10, t=50, b=30)  # Smaller margins
+)
+
+# Then save normally
+pio.write_html(
+    fig_slide5, 
+    file='slide5_mortality_map.html',
+    config={'responsive': True, 'displayModeBar': True, 'displaylogo': False},
+    include_plotlyjs='cdn',
+    full_html=True
+)
+
+fig_slide5.show()
+```
+
+
+
+
+```{python}
+# Plotting the firearm mortality rates by state
+# ============================================
+# ENHANCED HORIZONTAL BAR CHART FOR PPT
+# ============================================
+#| fig-width: 10
+#| fig-height: 12
+#| out-width: 100%
+#| out-height: 100%
+# Sort data
+sorted_df = mortality_df.sort_values('mortality_rate', ascending=True)
+
+# ENHANCEMENT 1: INCREASE FIGURE SIZE FOR BETTER READABILITY
+plt.figure(figsize=(10, 12))  # CHANGED: from (12,14) to (14,16)
+
+# ENHANCEMENT 2: BETTER COLOR GRADIENT (DARKER = HIGHER MORTALITY)
+# Option 1: Reds sequential (higher mortality = darker red)
+colors = sns.light_palette("#dd041e", n_colors=len(sorted_df), reverse=False) # CHANGED: Red (high) to Green (low)
+
+# Create barplot
+ax = sns.barplot(
+    x='mortality_rate', 
+    y='state', 
+    data=sorted_df,
+    palette=colors,
+    edgecolor='white',
+    linewidth=1.5  # CHANGED: from 0.5 to 1.5 for sharper edges
+)
+
+# ENHANCEMENT 3: MORE PROMINENT TITLE WITH SHADOW EFFECT
+plt.title(
+    'Firearm Mortality Rates by State (2023)',
+    fontsize=24,  # CHANGED: from 20 to 26
+    color='#2d2c2c',
+    pad=25,
+    loc='center'
+)
+
+# Find highest and lowest states
+highest_state = sorted_df.loc[sorted_df['mortality_rate'].idxmax()]
+lowest_state = sorted_df.loc[sorted_df['mortality_rate'].idxmin()]
+
+# ENHANCEMENT 4: STYLIZED SUBTITLE WITH BACKGROUND
+plt.text(
+    0.23, 0.99,
+    f' {lowest_state["state"]}: {lowest_state["mortality_rate"]:.1f} per 100k \n •  '
+    f' {highest_state["state"]}: {highest_state["mortality_rate"]:.1f} per 100k'
+    ,
+    transform=ax.transAxes,
+    fontsize=14,  # CHANGED: from 12 to 14
+    color='#0b0b0b',
+    verticalalignment='top',
+    horizontalalignment='left',
+    fontweight='semibold',
+    bbox=dict(boxstyle='round,pad=0.5', facecolor='#F0F0F0', edgecolor='#CCCCCC', alpha=0.9)  # ADDED: background box
+)
+
+# ENHANCEMENT 5: IMPROVED AXIS LABELS
+plt.xlabel(
+    'MORTALITY RATE (per 100,000 population)',
+    fontsize=16,  # CHANGED: from 14 to 16
+    color='#1A1A1A',
+    labelpad=15,
+    fontfamily='Arial'
+)
+
+# ENHANCEMENT 6: LARGER STATE NAMES WITH BETTER SPACING
+plt.yticks(
+    fontsize=13,  # CHANGED: from 11 to 13
+    color='#1A1A1A',
+    fontweight='500'  # ADDED: medium weight
+)
+
+# ENHANCEMENT 7: STYLIZED VALUE LABELS WITH BACKGROUND
+for i, (index, row) in enumerate(sorted_df.iterrows()):
+    # Background for better readability
+    plt.text(
+        row['mortality_rate'] + 0.8,  # More offset
+        i,
+        f'{row["mortality_rate"]:.1f}',
+        va='center',
+        ha='left',
+        fontsize=12,  # CHANGED: from 10 to 12
+        fontweight='bold',
+        color='#000000',
+        bbox=dict(boxstyle='round,pad=0.2', facecolor='white', edgecolor='none', alpha=0.7)  # ADDED: background
+    )
+
+# ENHANCEMENT 8: ENHANCED GRIDLINES
+plt.grid(axis='x', alpha=0.4, linestyle='-', linewidth=0.8, color='#DDDDDD')  # CHANGED: more visible
+
+# ENHANCEMENT 9: ADD MEAN LINE
+mean_rate = sorted_df['mortality_rate'].mean()
+# Add mean line
+plt.axvline(x=mean_rate, color='#010409', linestyle='--', linewidth=2, alpha=0.5, 
+            label=f'US Average: {mean_rate:.1f}')
+
+# Move legend to different position
+plt.legend(loc='best', fontsize=12)
+
+# ENHANCEMENT 10: ADD LEGEND
+plt.legend(loc='center left', fontsize=12)
+
+# Remove top and right spines
+sns.despine(top=True, right=True, left=False, bottom=False)
+
+# ENHANCEMENT 11: ADD SOURCE WITH STYLING
+plt.text(
+    0.98, -0.02,
+    'Source: CDC WISQARS (2023)',
+    transform=ax.transAxes,
+    fontsize=11,
+    color='#0c0c0c',
+    ha='right',
+    va='top',
+    style='normal',
+    fontweight='500'
+)
+
+# Adjust layout
+plt.tight_layout()
+
+# Save for PPT with high resolution
+plt.savefig(
+    'firearm_mortality_enhanced.png', 
+    dpi=300, 
+    bbox_inches='tight', 
+    facecolor='white',
+    edgecolor='none',
+    pad_inches=0.3
+)
+plt.show()
+```
+
+```{python}
+#| fig-cap: "Comparing Gun Law Strictness and Firearm Mortality"
+#| fig-width: 12
+#| fig-height: 6
+#| out-width: 100%
+# ============================================
+# SLIDE 6: SIDE-BY-SIDE COMPARISON
+# ============================================
+import plotly.graph_objects as go
+
+fig_slide6 = make_subplots(
+    rows=1, cols=2,
+    subplot_titles=('Strictness of State Firearm Laws', 'Firearm Mortality Rate'),
+    specs=[[{'type': 'choropleth'}, {'type': 'choropleth'}]]
+)
+red_scale_reversed = [
+    [0, '#A50F15'],    # Very dark red (Most Lax - score 1)
+    [0.25, '#DE2D26'], # Dark red
+    [0.5, '#FB6A4A'],  # Medium red
+    [0.75, '#FCAE91'], # Light red
+    [1, '#FEE5D9']     # Very light red (Strictest - score 5)
+]
+mortality_max = merged_df['mortality_rate'].max()  # e.g. ~25
+
+red_scale = [
+    [0,                '#FEE5D9'],   # 0  - very light
+    [5/mortality_max,  '#FCBBA1'],   # 5  - light
+    [10/mortality_max, '#FC9272'],   # 10 - light-medium
+    [15/mortality_max, '#FB6A4A'],   # 15 - medium
+    [20/mortality_max, '#DE2D26'],   # 20 - dark
+    [1,                '#67000D']    # max - very darkest red
+]
+# For map 1 (Strictness) — dark = lax (low score), light = strict (high score)
+# Low likert = dark red = white text, High likert = light red = black text
+text_colors_strictness = merged_df['likert_score'].apply(
+    lambda x: 'white' if x <= 2 else 'black'
+).tolist()
+
+# For map 2 (Mortality) — high mortality = dark red = white text
+text_colors_mortality = merged_df['mortality_rate'].apply(
+    lambda x: 'white' if x >= 15 else 'black'
+).tolist()
+# First map: Law Strictness
+# First map: Law Strictness
+fig_slide6.add_trace(
+    go.Choropleth(
+        locations=merged_df['state_abbr'],
+        locationmode='USA-states',
+        z=merged_df['likert_score'],
+        colorscale=red_scale_reversed,
+        zmin=1,
+        zmax=5,
+        showscale=True,
+        colorbar=dict(x=0.45,len=0.8,title='Strictness',
+        tickvals=[1, 2, 3, 4, 5],
+        ticktext=['1', '2', '3', '4', '5']),
+        geo='geo1',
+        name='',
+        hovertemplate='<b>%{location}</b><br>Likert Score: %{z}<extra></extra>'
+    ),
+    row=1, col=1
+)
+
+
+# Second map: Mortality Rates
+fig_slide6.add_trace(
+    go.Choropleth(
+        locations=merged_df['state_abbr'],
+        locationmode='USA-states',
+        z=merged_df['mortality_rate'],
+        colorscale=red_scale,
+        zmin=0,
+        zmax=merged_df['mortality_rate'].max(),
+        showscale=True,
+        colorbar=dict(x=1.0, len=0.8, title='Mortality Rate'),
+        geo='geo2',
+        name='',
+        hovertemplate='<b>%{location}</b><br>Mortality Rate: %{z:.2f}<extra></extra>'
+    ),
+    row=1, col=2
+)
+
+# Scattergeo — disable hover on both
+fig_slide6.add_trace(
+    go.Scattergeo(
+        locations=merged_df['state_abbr'],
+        locationmode='USA-states',
+        text=merged_df['state_abbr'],
+        mode='text',
+        textfont=dict(size=8, color=text_colors_strictness),
+        showlegend=False,
+        hoverinfo='skip',   # <-- disables hover on text labels
+        geo='geo1'
+    )
+)
+
+fig_slide6.add_trace(
+    go.Scattergeo(
+        locations=merged_df['state_abbr'],
+        locationmode='USA-states',
+        text=merged_df['state_abbr'],
+        mode='text',
+        textfont=dict(size=8, color=text_colors_mortality),
+        showlegend=False,
+        hoverinfo='skip',   # <-- disables hover on text labels
+        geo='geo2'
+    )
+)
+fig_slide6.update_layout(
+    title={
+        'text': 'Comparing Gun Law Strictness and Firearm Mortality',
+        'y': 0.9,
+        'x': 0.5,
+        'xanchor': 'center',
+        'yanchor': 'top',
+        'font': dict(size=24, color='#2E4057')
+    },
+    autosize=True,
+    showlegend=False,
+    margin=dict(t=100, b=80),
+    geo1=dict(
+        scope='usa',
+        projection=dict(type='albers usa'),
+        showlakes=True,
+        lakecolor='#FFFFFF',
+        subunitcolor='#B0B0B0'
+    ),
+    geo2=dict(
+        scope='usa',
+        projection=dict(type='albers usa'),
+        showlakes=True,
+        lakecolor='#FFFFFF',
+        subunitcolor='#B0B0B0'
+    )
+)
+
+fig_slide6.add_annotation(
+    text="<b>Mortality:</b> Light Red (Low) → Dark Red (High)",
+    xref="paper", yref="paper",
+    x=0.75, y=0.02,
+    showarrow=False,
+    font=dict(size=10, color='#666666')
+)
+fig_slide6.add_annotation(
+    text="<b>Law Strictness:</b> Dark Red (Lax) → Light Red (Strict)",
+    xref="paper", yref="paper",
+    x=0.25, y=0.02,
+    showarrow=False,
+    font=dict(size=10, color='#666666')
+)
+fig_slide6.update_annotations(yshift=-40)
+
+pio.write_html(
+    fig_slide6,
+    file='slide6_comparison_maps.html',
+    full_html=True,
+    include_plotlyjs=True,
+    config={'responsive': True},
+    post_script="""
+        document.querySelector('.plotly-graph-div').style.width = '100vw';
+        document.querySelector('.plotly-graph-div').style.height = '100vh';
+        Plotly.relayout(document.querySelector('.plotly-graph-div'), {
+            width: window.innerWidth,
+            height: window.innerHeight
+        });
+        window.addEventListener('resize', function() {
+            Plotly.relayout(document.querySelector('.plotly-graph-div'), {
+                width: window.innerWidth,
+                height: window.innerHeight
+            });
+        });
+    """
+)
+pio.write_html(fig_slide6, file='slide6_comparison_maps.html')
+fig_slide6.show()
+```
+
+
+
+```{python}
+# ============================================
+# SLIDE 7: BAR CHART - WITH ACTUAL DATA
+# ============================================
+#| fig-width: 12
+#| fig-height: 6
+#| out-width: 100%
+# Create bar chart
+fig_slide7 = go.Figure()
+
+# Define improved colors for bars - better gradient: Red (Lax) → Green (Strict)
+#'#8d110b'], [0.25, '#d52020'], [0.5, '#f2543f'], [0.75, '#f88c7c'], [1, '#f2cdc7']
+bar_colors = ['#8d110b', '#d52020', '#f2543f', '#f88c7c', '#f2cdc7']
+
+
+
+# Generate colors based on mean mortality rates
+#bar_colors = [mcolors.to_hex(colormap(norm(rate))) for rate in bin_summary['mean']]
+# Get actual values from bin_summary
+most_lax_value = bin_summary[bin_summary['likert_label'] == 'Most Lax']['mean'].values[0]
+strictest_value = bin_summary[bin_summary['likert_label'] == 'Strictest']['mean'].values[0]
+difference = most_lax_value - strictest_value
+
+# Add bars
+fig_slide7.add_trace(go.Bar(
+    x=bin_summary['likert_label'],
+    y=bin_summary['mean'],
+    marker_color=bar_colors,
+    error_y=dict(
+        type='data',
+        array=bin_summary['std'],
+        visible=True,
+        color='#666666',
+        thickness=1.5,
+        width=5
+    ),
+        text=[f'{val:.1f}' for val in bin_summary['mean']],
+    textposition='inside',           # Changed from 'outside' to 'inside'
+    textfont=dict(
+        size=14,
+        color='#FFFFFF',              # White text on dark bars
+        family='Arial Black'
+    ),
+    insidetextanchor='end'
+))
+
+# Update layout with improved design
+fig_slide7.update_layout(
+    title={
+        'text': f'Stricter Gun Laws, Fewer Deaths: A {difference:.1f}-Point Gap',
+        'y':0.9,
+        'x':0.5,
+        'xanchor': 'center',
+        'yanchor': 'top',
+        'font': dict(size=24, color='#2E4057')
+    },
+    xaxis=dict(
+        title='',
+        tickfont=dict(size=14, color='#1A1A1A'),
+        categoryorder='array',
+        categoryarray=['Most Lax', 'Moderately Lax', 'Moderate', 'Moderately Strict', 'Strictest'],
+        tickangle=0
+    ),
+    yaxis=dict(
+        title='Deaths per 100,000 population',
+        title_font=dict(size=15, color='#1A1A1A'),
+        tickfont=dict(size=13, color='#1A1A1A'),
+        range=[0, max(bin_summary['mean'] + bin_summary['std']) * 1.1],
+        gridcolor='#E0E0E0',
+        gridwidth=1,
+        zeroline=True,
+        zerolinecolor='#CCCCCC'
+    ),
+    height=600,
+    width=1000,
+    plot_bgcolor='white',
+    paper_bgcolor='white',
+    margin=dict(t=100, b=70, l=80, r=40),
+    hoverlabel=dict(
+        bgcolor='white',
+        font_size=13,
+        font_family='Arial'
+    )
+)
+
+# Add trend annotation with actual values
+fig_slide7.add_annotation(
+    x=2.5,  # Center between the two bars
+    y=17, #strictest_value + 5,
+    text=f"⬇️ {difference:.1f} fewer deaths per 100k",
+    showarrow=True,
+    arrowhead=2,
+    arrowsize=1,
+    arrowwidth=2,
+    arrowcolor='#1D5B3E',
+    ax=0.0,
+    ay=-9,
+    font=dict(size=13, color='#1D5B3E', family='Arial Bold'),
+    bgcolor='rgba(255,255,255,0.8)',
+    bordercolor='#1D5B3E',
+    borderwidth=1,
+    borderpad=4
+)
+
+# Add footnote with actual data
+fig_slide7.add_annotation(
+    text=f"States with strictest laws: {strictest_value:.1f} ± {bin_summary[bin_summary['likert_label'] == 'Strictest']['std'].values[0]:.1f} per 100k • "
+         f"Most lax states: {most_lax_value:.1f} ± {bin_summary[bin_summary['likert_label'] == 'Most Lax']['std'].values[0]:.1f} per 100k",
+    xref="paper", yref="paper",
+    x=0.5, y=-0.15,
+    showarrow=False,
+    font=dict(size=14, color='#5e1d1d', family='Arial',weight='bold'),
+    align='center'
+)
+
+# Save as HTML
+pio.write_html(
+    fig_slide7, 
+    file='slide7_bar_chart.html',
+    config={'responsive': True, 'displayModeBar': False, 'displaylogo': False},
+    include_plotlyjs='cdn',
+    full_html=True
+)
+
+fig_slide7.show()
+```
+
+```{python}
+# ============================================
+# HEATMAP: Likert order from Most Lax to Strictest
+# ============================================
+#| fig-width: 12
+#| fig-height: 6
+#| out-width: 100%
+# Define Likert order from Most Lax to Strictest
+likert_order = ['Most Lax', 'Moderately Lax', 'Moderate', 'Moderately Strict', 'Strictest']
+
+# Convert to categorical with proper order
+merged_df['likert_label'] = pd.Categorical(
+    merged_df['likert_label'], 
+    categories=likert_order, 
+    ordered=True
+)
+
+# Sort states within each Likert category by mortality rate (descending)
+merged_df = merged_df.sort_values(['likert_label', 'mortality_rate'], ascending=[True, False])
+
+# Pivot the data to create a matrix for heatmap
+heatmap_data = merged_df.pivot_table(
+    index='state', 
+    columns='likert_label', 
+    values='mortality_rate', 
+    aggfunc='first'  # Take the first value (should be unique per state/category)
+)
+
+# Create the heatmap using imshow (shows exact values, no aggregation)
+fig = px.imshow(
+    heatmap_data,
+    text_auto='.1f',  # Show values in cells
+    color_continuous_scale='Reds',
+    aspect='auto',
+    title='Firearm Mortality Rate by State and Gun Law Strictness (2023)',
+    labels={
+        'x': 'Gun Law Strictness',
+        'y': 'State',
+        'color': 'Mortality Rate<br>per 100,000',
+        'font': dict(size=24, color='#2E4057')
+    },
+    zmin=0,
+    zmax=merged_df['mortality_rate'].max()
+)
+
+# Enhance layout
+fig.update_layout(
+    height=900,
+    width=1000,
+    title={
+        'text': ' Firearm Mortality by State & Gun Law Strictness',
+        'y':0.95,
+        'x':0.5,
+        'xanchor': 'center',
+        'yanchor': 'top',
+        'font': dict(size=24, color='#2E4057')
+    },
+    xaxis={
+        'title': 'Gun Law Strictness →',
+        'title_font': {'size': 16, 'color': '#1A1A1A'},
+        'tickfont': {'size': 14, 'color': '#1A1A1A'},
+        'side': 'bottom'
+    },
+    yaxis={
+        'title': '',
+        'tickfont': {'size': 11, 'color': '#333333'},
+        'title_standoff': 10
+    },
+    coloraxis_colorbar={
+        'title': 'Deaths<br>per 100k',
+        'title_font': {'size': 12},
+        'tickfont': {'size': 11},
+        'len': 0.8,
+        'x': 1.02
+    },
+    margin=dict(l=120, r=80, t=100, b=80),
+    plot_bgcolor='#F8F9FA',
+    paper_bgcolor='white'
+)
+
+# Add annotation explaining the pattern
+fig.add_annotation(
+    x=0.5, y=-0.1,
+    text="← Lax laws (red) → Higher mortality | Strict laws (pink/white) → Lower mortality →",
+    showarrow=False,
+    xref='paper', yref='paper',
+    font={'size': 13, 'color': '#666666', 'family': 'Arial'},
+    align='center'
+)
+
+# Improve hover information
+fig.update_traces(
+    hovertemplate='<b>%{y}</b><br>Law Strictness: %{x}<br>Mortality Rate: %{z:.1f} per 100k<extra></extra>',
+    xgap=1, ygap=1  # Add gaps between cells
+)
+
+# Add source note
+fig.add_annotation(
+    text="Source: CDC WISQARS | Giffords Law Center",
+    xref="paper", yref="paper",
+    x=0.98, y=-0.04,
+    showarrow=False,
+    font=dict(size=10, color='#999999'),
+    align='right'
+)
+
+# Show the figure
+fig.show()
+
+# Save the figure
+fig.write_html(
+    'firearm_mortality_heatmap_fixed.html',
+    config={'responsive': True, 'displayModeBar': True, 'displaylogo': False},
+    include_plotlyjs='cdn',
+    full_html=True
+)
+
+```
+
+#### What we have accomplished:
+This notebook successfully merges firearm mortality data with gun law strictness scores, creating a comprehensive dataset for analysis. The visualizations, including a Likert scale table, a US heatmap of mortality rates, and a side-by-side comparison of strictness vs. mortality, effectively communicate the relationship between gun laws and firearm deaths across the United States. The enhanced bar chart and heatmap provide clear insights into how stricter gun laws correlate with lower mortality rates, supporting the narrative of the presentation. The use of interactive Plotly figures allows for engaging exploration of the data, making it suitable for a compelling presentation on the impact of gun laws on firearm mortality.
+
+#### Key Findings:
+1. **Clear Correlation**: There is a noticeable correlation between gun law strictness and firearm mortality rates. States with stricter gun laws tend to have lower mortality rates, while those with more lax laws show higher rates of firearm-related deaths.
+2. **Significant Differences**: The bar chart reveals a significant gap in average mortality rates between the most lax and strictest states, highlighting the potential life-saving impact of stricter gun legislation.
+3. **Geographic Patterns**: The heatmap and US map visualizations show geographic patterns in both gun law strictness and mortality rates, with certain regions (e.g., the South) exhibiting higher mortality and more lax laws, while others (e.g., the Northeast) show the opposite.
+4. **Policy Implications**: The data suggests that implementing stricter gun laws could be associated with reductions in firearm mortality, providing evidence for policymakers advocating for stronger gun control measures.   
+
+*"The data suggests an association between stricter gun laws and lower 
+firearm mortality rates. While causation cannot be established from 
+this analysis alone, these findings are consistent with existing 
+literature suggesting that stronger gun legislation may contribute 
+to reductions in firearm-related deaths."*
+
+-----------------------------------------------------
