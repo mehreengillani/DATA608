@@ -1,0 +1,248 @@
+state,role,avg_salary,state_code
+Alabama,Business Analyst,111280.0,AL
+Alabama,Data Analyst,115400.0,AL
+Alabama,Data Architect,105220.0,AL
+Alabama,Data Engineer,110570.0,AL
+Alabama,Data Scientist,102970.0,AL
+Alaska,Business Analyst,107310.0,AK
+Alaska,Data Analyst,97310.0,AK
+Alaska,Data Architect,104085.0,AK
+Alaska,Data Engineer,117610.0,AK
+Alaska,Data Scientist,88690.0,AK
+Arizona,Business Analyst,117750.0,AZ
+Arizona,Data Analyst,96720.0,AZ
+Arizona,Data Architect,116210.0,AZ
+Arizona,Data Engineer,118790.0,AZ
+Arizona,Data Scientist,112460.0,AZ
+Arkansas,Business Analyst,80610.0,AR
+Arkansas,Data Analyst,72985.0,AR
+Arkansas,Data Architect,96080.0,AR
+Arkansas,Data Engineer,100380.0,AR
+Arkansas,Data Scientist,104560.0,AR
+California,Business Analyst,120410.0,CA
+California,Data Analyst,120580.0,CA
+California,Data Architect,140940.0,CA
+California,Data Engineer,158000.0,CA
+California,Data Scientist,155450.0,CA
+Colorado,Business Analyst,116450.0,CO
+Colorado,Data Analyst,118210.0,CO
+Colorado,Data Architect,134455.0,CO
+Colorado,Data Engineer,132080.0,CO
+Colorado,Data Scientist,118250.0,CO
+Connecticut,Business Analyst,120670.0,CT
+Connecticut,Data Analyst,102860.0,CT
+Connecticut,Data Architect,125655.0,CT
+Connecticut,Data Engineer,119140.0,CT
+Connecticut,Data Scientist,120270.0,CT
+Delaware,Business Analyst,107720.0,DE
+Delaware,Data Analyst,107010.0,DE
+Delaware,Data Architect,127955.0,DE
+Delaware,Data Engineer,124615.0,DE
+Florida,Business Analyst,98630.0,FL
+Florida,Data Analyst,95530.0,FL
+Florida,Data Architect,120590.0,FL
+Florida,Data Engineer,113745.0,FL
+Florida,Data Scientist,117670.0,FL
+Georgia,Data Analyst,94085.0,GA
+Georgia,Data Architect,123590.0,GA
+Georgia,Data Engineer,112405.0,GA
+Georgia,Data Scientist,111020.0,GA
+Hawaii,Business Analyst,98350.0,HI
+Hawaii,Data Analyst,96150.0,HI
+Hawaii,Data Architect,123785.0,HI
+Hawaii,Data Engineer,113575.0,HI
+Hawaii,Data Scientist,124530.0,HI
+Idaho,Business Analyst,95070.0,ID
+Idaho,Data Analyst,81030.0,ID
+Idaho,Data Architect,109340.0,ID
+Idaho,Data Engineer,113205.0,ID
+Idaho,Data Scientist,120410.0,ID
+Illinois,Business Analyst,123900.0,IL
+Illinois,Data Analyst,103395.0,IL
+Illinois,Data Architect,122060.0,IL
+Illinois,Data Engineer,114790.0,IL
+Illinois,Data Scientist,119010.0,IL
+Indiana,Business Analyst,102060.0,IN
+Indiana,Data Analyst,96515.0,IN
+Indiana,Data Architect,108815.0,IN
+Indiana,Data Engineer,99970.0,IN
+Indiana,Data Scientist,92620.0,IN
+Iowa,Business Analyst,88840.0,IA
+Iowa,Data Analyst,91405.0,IA
+Iowa,Data Architect,113205.0,IA
+Iowa,Data Engineer,103300.0,IA
+Iowa,Data Scientist,97300.0,IA
+Kansas,Business Analyst,88230.0,KS
+Kansas,Data Analyst,101040.0,KS
+Kansas,Data Architect,121615.0,KS
+Kansas,Data Engineer,99920.0,KS
+Kansas,Data Scientist,107300.0,KS
+Kentucky,Business Analyst,93360.0,KY
+Kentucky,Data Analyst,89040.0,KY
+Kentucky,Data Architect,98445.0,KY
+Kentucky,Data Engineer,97320.0,KY
+Kentucky,Data Scientist,100410.0,KY
+Louisiana,Business Analyst,106420.0,LA
+Louisiana,Data Analyst,83245.0,LA
+Louisiana,Data Architect,89230.0,LA
+Louisiana,Data Engineer,91295.0,LA
+Louisiana,Data Scientist,71740.0,LA
+Maine,Business Analyst,92730.0,ME
+Maine,Data Analyst,99570.0,ME
+Maine,Data Architect,108205.0,ME
+Maine,Data Engineer,100545.0,ME
+Maine,Data Scientist,101890.0,ME
+Maryland,Business Analyst,124430.0,MD
+Maryland,Data Analyst,110620.0,MD
+Maryland,Data Architect,133725.0,MD
+Maryland,Data Engineer,136550.0,MD
+Maryland,Data Scientist,135370.0,MD
+Massachusetts,Business Analyst,147330.0,MA
+Massachusetts,Data Analyst,112510.0,MA
+Massachusetts,Data Architect,136545.0,MA
+Massachusetts,Data Engineer,132920.0,MA
+Massachusetts,Data Scientist,139670.0,MA
+Michigan,Business Analyst,103930.0,MI
+Michigan,Data Analyst,98810.0,MI
+Michigan,Data Architect,107630.0,MI
+Michigan,Data Engineer,105850.0,MI
+Michigan,Data Scientist,102030.0,MI
+Minnesota,Business Analyst,110810.0,MN
+Minnesota,Data Analyst,104485.0,MN
+Minnesota,Data Architect,114370.0,MN
+Minnesota,Data Engineer,114725.0,MN
+Minnesota,Data Scientist,118110.0,MN
+Mississippi,Business Analyst,88590.0,MS
+Mississippi,Data Analyst,85530.0,MS
+Mississippi,Data Architect,88615.0,MS
+Mississippi,Data Engineer,84060.0,MS
+Mississippi,Data Scientist,77830.0,MS
+Missouri,Business Analyst,108950.0,MO
+Missouri,Data Analyst,80505.0,MO
+Missouri,Data Architect,103860.0,MO
+Missouri,Data Engineer,97340.0,MO
+Missouri,Data Scientist,95310.0,MO
+Montana,Business Analyst,87290.0,MT
+Montana,Data Analyst,88035.0,MT
+Montana,Data Architect,103785.0,MT
+Montana,Data Engineer,110895.0,MT
+Montana,Data Scientist,111490.0,MT
+Nebraska,Business Analyst,91750.0,NE
+Nebraska,Data Analyst,95860.0,NE
+Nebraska,Data Architect,112915.0,NE
+Nebraska,Data Engineer,103425.0,NE
+Nebraska,Data Scientist,97720.0,NE
+Nevada,Business Analyst,106490.0,NV
+Nevada,Data Analyst,97420.0,NV
+Nevada,Data Architect,105985.0,NV
+Nevada,Data Engineer,119545.0,NV
+Nevada,Data Scientist,98820.0,NV
+New Hampshire,Business Analyst,117180.0,NH
+New Hampshire,Data Analyst,100990.0,NH
+New Hampshire,Data Architect,109190.0,NH
+New Hampshire,Data Engineer,124490.0,NH
+New Hampshire,Data Scientist,102230.0,NH
+New Jersey,Business Analyst,119130.0,NJ
+New Jersey,Data Analyst,118320.0,NJ
+New Jersey,Data Architect,135465.0,NJ
+New Jersey,Data Engineer,129365.0,NJ
+New Jersey,Data Scientist,131800.0,NJ
+New Mexico,Business Analyst,90440.0,NM
+New Mexico,Data Analyst,94030.0,NM
+New Mexico,Data Architect,106050.0,NM
+New Mexico,Data Engineer,123410.0,NM
+New Mexico,Data Scientist,86520.0,NM
+New York,Business Analyst,124510.0,NY
+New York,Data Analyst,116180.0,NY
+New York,Data Architect,125455.0,NY
+New York,Data Engineer,140175.0,NY
+New York,Data Scientist,133450.0,NY
+North Carolina,Business Analyst,106830.0,NC
+North Carolina,Data Analyst,105485.0,NC
+North Carolina,Data Architect,117945.0,NC
+North Carolina,Data Engineer,117435.0,NC
+North Carolina,Data Scientist,118020.0,NC
+North Dakota,Business Analyst,88880.0,ND
+North Dakota,Data Analyst,91900.0,ND
+North Dakota,Data Architect,99390.0,ND
+North Dakota,Data Engineer,94065.0,ND
+North Dakota,Data Scientist,94130.0,ND
+Ohio,Business Analyst,94320.0,OH
+Ohio,Data Analyst,101930.0,OH
+Ohio,Data Architect,114785.0,OH
+Ohio,Data Engineer,103260.0,OH
+Ohio,Data Scientist,100260.0,OH
+Oklahoma,Business Analyst,95320.0,OK
+Oklahoma,Data Analyst,84335.0,OK
+Oklahoma,Data Architect,110655.0,OK
+Oklahoma,Data Engineer,91890.0,OK
+Oklahoma,Data Scientist,89940.0,OK
+Oregon,Business Analyst,109090.0,OR
+Oregon,Data Analyst,111255.0,OR
+Oregon,Data Architect,126290.0,OR
+Oregon,Data Engineer,129475.0,OR
+Oregon,Data Scientist,124060.0,OR
+Pennsylvania,Business Analyst,99540.0,PA
+Pennsylvania,Data Analyst,92540.0,PA
+Pennsylvania,Data Architect,117615.0,PA
+Pennsylvania,Data Engineer,108340.0,PA
+Pennsylvania,Data Scientist,107450.0,PA
+Rhode Island,Business Analyst,102370.0,RI
+Rhode Island,Data Analyst,114930.0,RI
+Rhode Island,Data Architect,126725.0,RI
+Rhode Island,Data Engineer,112800.0,RI
+Rhode Island,Data Scientist,119400.0,RI
+South Carolina,Business Analyst,104240.0,SC
+South Carolina,Data Analyst,90360.0,SC
+South Carolina,Data Architect,114115.0,SC
+South Carolina,Data Engineer,105875.0,SC
+South Carolina,Data Scientist,96970.0,SC
+South Dakota,Business Analyst,86410.0,SD
+South Dakota,Data Analyst,102040.0,SD
+South Dakota,Data Architect,104415.0,SD
+South Dakota,Data Engineer,79500.0,SD
+South Dakota,Data Scientist,92460.0,SD
+Tennessee,Business Analyst,102350.0,TN
+Tennessee,Data Analyst,86490.0,TN
+Tennessee,Data Architect,113245.0,TN
+Tennessee,Data Engineer,102830.0,TN
+Tennessee,Data Scientist,114830.0,TN
+Texas,Business Analyst,107550.0,TX
+Texas,Data Analyst,107725.0,TX
+Texas,Data Architect,123130.0,TX
+Texas,Data Engineer,119490.0,TX
+Texas,Data Scientist,114800.0,TX
+Utah,Data Analyst,90610.0,UT
+Utah,Data Architect,119760.0,UT
+Utah,Data Engineer,121725.0,UT
+Utah,Data Scientist,119640.0,UT
+Vermont,Business Analyst,121870.0,VT
+Vermont,Data Analyst,104240.0,VT
+Vermont,Data Architect,99980.0,VT
+Vermont,Data Engineer,110045.0,VT
+Vermont,Data Scientist,119630.0,VT
+Virginia,Business Analyst,123280.0,VA
+Virginia,Data Analyst,121780.0,VA
+Virginia,Data Architect,113810.0,VA
+Virginia,Data Engineer,133385.0,VA
+Virginia,Data Scientist,132230.0,VA
+Washington,Business Analyst,124240.0,WA
+Washington,Data Analyst,119695.0,WA
+Washington,Data Architect,132770.0,WA
+Washington,Data Engineer,152855.0,WA
+Washington,Data Scientist,162730.0,WA
+West Virginia,Business Analyst,97740.0,WV
+West Virginia,Data Analyst,87330.0,WV
+West Virginia,Data Architect,103110.0,WV
+West Virginia,Data Engineer,87470.0,WV
+West Virginia,Data Scientist,102770.0,WV
+Wisconsin,Business Analyst,110500.0,WI
+Wisconsin,Data Analyst,89185.0,WI
+Wisconsin,Data Architect,122660.0,WI
+Wisconsin,Data Engineer,100480.0,WI
+Wisconsin,Data Scientist,105540.0,WI
+Wyoming,Business Analyst,127420.0,WY
+Wyoming,Data Analyst,95560.0,WY
+Wyoming,Data Architect,71090.0,WY
+Wyoming,Data Engineer,121500.0,WY
+Wyoming,Data Scientist,85480.0,WY
