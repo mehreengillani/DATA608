@@ -1,0 +1,148 @@
+---
+title: "Story5"
+author: "Mehreen Gillani"
+format: html
+---
+
+```{python}
+import urllib.request
+import os
+import io
+import csv
+
+# ── output folder ──────────────────────────────────────────────────────────────
+os.makedirs("data", exist_ok=True)
+```
+```{python}
+# ═════════════════════════════════════════════════════
+# 1.  GLOBAL TEMPERATURE ANOMALY  (NASA GISTEMP v4)
+# ═════════════════════════════════════════════════════
+
+print("Fetching NASA GISTEMP v4 temperature data...")
+
+TEMP_URL = "https://data.giss.nasa.gov/gistemp/tabledata_v4/GLB.Ts+dSST.csv"
+
+urllib.request.urlretrieve(TEMP_URL, "data/raw_gistemp.csv")
+
+# Parse: skip the first row (header note), keep Year + J-D (annual mean) column
+rows = []
+with open("data/raw_gistemp.csv", newline="") as f:
+    reader = csv.reader(f)
+    next(reader)                        # skip blank/title line
+    headers = next(reader)             # Year, Jan, Feb, ... J-D, D-N, ...
+    jd_col = headers.index("J-D")      # annual mean column
+
+    for row in reader:
+        year = row[0].strip()
+        if not year.isdigit():
+            continue
+        anomaly = row[jd_col].strip()
+        if anomaly in ("", "****"):     # missing values
+            anomaly = ""
+        rows.append({"year": int(year), "temp_anomaly_C": anomaly})
+
+# Filter to 1990–2024 and save
+with open("data/temperature_anomaly.csv", "w", newline="") as f:
+    writer = csv.DictWriter(f, fieldnames=["year", "temp_anomaly_C"])
+    writer.writeheader()
+    for r in rows:
+        if 1990 <= r["year"] <= 2024:
+            writer.writerow(r)
+
+print(f"  ✓ Saved data/temperature_anomaly.csv  ({sum(1990<=r['year']<=2024 for r in rows)} rows)")
+
+```
+
+```{python}
+# ═════════════════════════════════════════════════
+# 2.  US TORNADO COUNTS  (NOAA Storm Prediction Center)
+# ═══════════════════════════════════════════════
+print("Fetching NOAA SPC tornado data...")
+
+TORNADO_URL = "https://www.spc.noaa.gov/wcm/data/1950-2022_actual_tornadoes.csv"
+
+urllib.request.urlretrieve(TORNADO_URL, "data/raw_tornadoes.csv")
+
+# Aggregate: count tornadoes per year, also count strong ones (mag >= 2)
+from collections import defaultdict
+tornado_counts   = defaultdict(int)
+strong_counts    = defaultdict(int)   # EF/F2 and above
+
+with open("data/raw_tornadoes.csv", newline="", encoding="utf-8", errors="replace") as f:
+    reader = csv.DictReader(f)
+    for row in reader:
+        try:
+            year = int(row["yr"])
+            mag  = int(row["mag"]) if row["mag"].strip() not in ("", "-9") else -1
+        except ValueError:
+            continue
+        tornado_counts[year] += 1
+        if mag >= 2:
+            strong_counts[year] += 1
+
+with open("data/tornado_counts.csv", "w", newline="") as f:
+    writer = csv.writer(f)
+    writer.writerow(["year", "total_tornadoes", "strong_tornadoes_EF2plus"])
+    for year in sorted(tornado_counts):
+        if 1990 <= year <= 2022:
+            writer.writerow([year, tornado_counts[year], strong_counts[year]])
+
+print(f"  ✓ Saved data/tornado_counts.csv  (1990–2022)")
+```
+
+```{python}
+
+# ════════════════════════════════════════════════════════
+# 3.  GLOBAL TROPICAL CYCLONES  (NOAA IBTrACS — all basins)
+# ════════════════════════════════════════════════════════
+print("Fetching NOAA IBTrACS tropical cyclone data (this file is ~100 MB, may take a minute)...")
+
+IBTRACS_URL = (
+    "https://www.ncei.noaa.gov/data/international-best-track-archive-for-climate-stewardship-ibtracs"
+    "/v04r01/access/csv/ibtracs.since1980.list.v04r01.csv"
+)
+
+urllib.request.urlretrieve(IBTRACS_URL, "data/raw_ibtracs.csv")
+
+# Aggregate per year: count unique storms, count Category 3+ (wind >= 96 kt)
+storm_years   = defaultdict(set)
+intense_years = defaultdict(set)
+
+with open("data/raw_ibtracs.csv", newline="", encoding="utf-8", errors="replace") as f:
+    reader = csv.DictReader(f, skipinitialspace=True)
+    next(reader)   # IBTrACS has a second header row with units — skip it
+
+    for row in reader:
+        sid  = row.get("SID", "").strip()
+        season = row.get("SEASON", "").strip()
+        wind_str = row.get("USA_WIND", "").strip()   # knots, best-track wind
+
+        if not season.isdigit() or not sid:
+            continue
+        year = int(season)
+        if not (1990 <= year <= 2024):
+            continue
+
+        storm_years[year].add(sid)
+
+        try:
+            wind = float(wind_str)
+            if wind >= 96:                            # Category 3+ threshold
+                intense_years[year].add(sid)
+        except ValueError:
+            pass
+
+with open("data/cyclone_counts.csv", "w", newline="") as f:
+    writer = csv.writer(f)
+    writer.writerow(["year", "total_named_storms", "category3plus_storms"])
+    for year in sorted(storm_years):
+        writer.writerow([year, len(storm_years[year]), len(intense_years[year])])
+
+print(f"  ✓ Saved data/cyclone_counts.csv  (1990–2024, all global basins)")
+
+print("\n✅ All done!  Files saved to ./data/")
+print("   data/temperature_anomaly.csv")
+print("   data/tornado_counts.csv")
+print("   data/cyclone_counts.csv")
+
+```

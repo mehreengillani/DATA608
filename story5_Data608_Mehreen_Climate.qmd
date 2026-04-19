@@ -1,0 +1,646 @@
+---
+title: "Story 5: Climate and Weather Patterns"
+subtitle: "Analyzing the relationship between global temperature anomalies and storm activity"
+author: "Mehreen Ali Gillani"
+date: "April 2026"
+format:
+  revealjs:
+    html: true
+    theme: simple
+    self-contained: true
+    slide-number: true
+    slide-number-format: "{current} / {total}"
+    transition: fade
+    background-transition: fade
+    footer: "Story 5: Climate and Weather Patterns · Mehreen Ali Gillani · April 2026"
+    css: custom.css
+    width: 1280
+    height: 720
+    margin: 0.08
+    title-slide-attributes:
+      data-background-color: "#0f2d4a"
+      data-visibility: "hidden"
+  pdf:
+    documentclass: scrartcl
+    keep-tex: true  
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+## {background-image="2.webp" background-size="cover"}
+
+<div style="
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  height: 100vh;
+  padding: 0 2rem;
+  background: linear-gradient(135deg, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.4) 100%);
+">
+  
+  <!-- Story tag -->
+  <p style="
+    font-size: 0.7rem;
+    color: #7FB3D3;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin: 0 0 1rem;
+    font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+    font-weight: 400;
+  ">
+    Climate and Weather Patterns · Story 5
+  </p>
+
+  <!-- Main question - BIG and BOLD -->
+  <h1 style="
+    font-size: 3rem;
+    color: white;
+    font-weight: 800;
+    line-height: 1.2;
+    margin: 0 0 0.5rem;
+    font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+    max-width: 900px;
+    text-shadow: 3px 3px 12px rgba(0,0,0,0.5);
+    letter-spacing: -0.02em;
+  ">
+    What Is The Effect Of The Earth's Temperature<br>on Cyclonic Storms?
+  </h1>
+
+  <!-- Teaser answer -->
+  <p style="
+    font-size: 1.1rem;
+    color: #FFD166;
+    font-weight: 600;
+    margin: 0 0 1rem;
+    font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+  ">
+    The data reveals a clear pattern — and it's accelerating
+  </p>
+  <!-- Divider -->
+  <div style="width:80px; height:3px; background:#7FB3D3; margin:0.5rem auto 2.5rem; border-radius:2px;"></div>
+  
+  <!-- Storm types -->
+  <p style="font-size:1rem; color:#d4e6f1; font-weight:500; margin:1.5rem 0 0.25rem; font-family:'Inter',Arial,sans-serif; letter-spacing:0.3px;">
+    🌊 Hurricanes  ·  🌀 Typhoons  ·  🌪️ Tornadoes
+  </p>
+
+  <!-- Year range — SPACING ADJUSTED TO MATCH -->
+  <p style="font-size:0.9rem; color:#aac8e0; font-weight:400; margin:0.5rem 0 1.5rem; font-family:'Inter',Arial,sans-serif;">
+    1990 – 2024 · 35 Years of Data
+  </p>
+
+  <!-- Methodology -->
+  <p style="
+    font-size: 0.8rem;
+    color: #b0cce6;
+    font-style: italic;
+    margin: 0;
+    font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+    max-width: 500px;
+  ">
+    Data analysis to establish correlations between earth temperature<br>
+    and storm occurrence and intensity
+  </p>
+
+  <!-- Author -->
+<p style="
+  font-size: 0.7rem;
+  color: #6a9cbf;
+  margin-top: 0.5rem;
+  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+  letter-spacing: 0.5px;
+">
+  Mehreen Ali Gillani · April 2026
+</p>
+
+  <!-- Optional: Small data badge -->
+  <div style="
+    position: absolute;
+    bottom: 15px;
+    right: 20px;
+    font-size: 0.6rem;
+    color: rgba(255,255,255,0.4);
+    font-family: monospace;
+  ">
+    NASA GISTEMP · NOAA IBTrACS
+  </div>
+
+</div>
+
+
+## How We Know This {background-color="#f8fafc"}
+
+<div style="font-size:1.05rem; line-height:2.3; max-width:900px;
+            margin:1.2rem auto 0; padding:0 1rem; text-align:left;">
+
+1️⃣We used real measurement — NASA tracked Earth's temperature every year since 1990
+
+2️⃣We counted actual Storms — NOAA recorded every hurricane, typhoon, and tornado
+
+3️⃣We looked for patterns - No complex formulas — just comparing temperature to storm counts
+
+4️⃣You be the judge —Every chart on the next slides tells the story
+
+</div>
+
+
+```{python}
+#| label: setup
+#| include: false
+#| echo: false
+
+import os, warnings
+import pandas as pd
+import numpy as np
+from pathlib import Path
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+import matplotlib.patches as mpatches
+from matplotlib.lines import Line2D
+from scipy import stats
+from IPython.display import Image, display
+
+warnings.filterwarnings("ignore")
+
+# ── Set up absolute paths (works regardless of working directory) ──────────
+SCRIPT_DIR = Path.cwd()  # Current directory where Quarto is rendering
+DATA_DIR = SCRIPT_DIR / "data"
+CHARTS_DIR = SCRIPT_DIR / "charts"
+CHARTS_DIR.mkdir(exist_ok=True)
+print(f"📁 Script directory: {SCRIPT_DIR}")
+print(f"📁 Data directory: {DATA_DIR}")
+
+# ── Palette ────────────────────────────────────────────────────────────────
+C_TEMP    = "#e63946"
+C_CYCL    = "#1d3557"
+C_INTENSE = "#457b9d"
+C_TORN    = "#f4a261"
+C_TREND   = "#2a9d8f"
+C_BG      = "#F0F4F8"
+DECADE_COLORS = {"1990s": "#2a9d8f", "2000s": "#457b9d", "2010s+": "#e63946"}
+
+plt.rcParams.update({
+    "font.family": "DejaVu Sans",
+    "axes.spines.top": False,
+    "axes.spines.right": False,
+    "axes.grid": True,
+    "grid.alpha": 0.3,
+    "grid.linestyle": "--",
+    "figure.facecolor": C_BG,
+    "axes.facecolor": "white",
+})
+
+
+# ── Load data ──────────────────────────────────────────────────────────────
+def load_data():
+    try:
+        df_t = pd.read_csv(DATA_DIR / "temperature_anomaly.csv")
+        df_t.columns = ["year","temp"]
+        df_t["temp"] = pd.to_numeric(df_t["temp"], errors="coerce")
+        df_t = df_t.dropna()
+        print("  ✓ temperature_anomaly.csv loaded")
+    except FileNotFoundError:
+        print(f"  ⚠️ temperature_anomaly.csv not found at {DATA_DIR / 'temperature_anomaly.csv'}")
+        print("  → Using embedded fallback data")
+        df_t = pd.DataFrame({"year":list(TEMP_DATA.keys()),
+                              "temp":list(TEMP_DATA.values())})
+
+    try:
+        df_c = pd.read_csv(DATA_DIR / "cyclone_counts.csv")
+        df_c.columns = ["year","storms","intense"]
+        print("  ✓ cyclone_counts.csv loaded")
+    except FileNotFoundError:
+        print(f"  ⚠️ cyclone_counts.csv not found at {DATA_DIR / 'cyclone_counts.csv'}")
+        print("  → Using embedded fallback data")
+        df_c = pd.DataFrame({
+            "year":    list(CYCLONE_DATA.keys()),
+            "storms":  [v[0] for v in CYCLONE_DATA.values()],
+            "intense": [v[1] for v in CYCLONE_DATA.values()]
+        })
+
+    try:
+        df_to = pd.read_csv(DATA_DIR / "tornado_counts.csv")
+        df_to = df_to[["year","total_tornadoes"]].rename(
+            columns={"total_tornadoes":"tornadoes"})
+        print("  ✓ tornado_counts.csv loaded")
+    except FileNotFoundError:
+        print(f"  ⚠️ tornado_counts.csv not found at {DATA_DIR / 'tornado_counts.csv'}")
+        print("  → Using embedded fallback data")
+        df_to = pd.DataFrame({"year":    list(TORNADO_DATA.keys()),
+                               "tornadoes": list(TORNADO_DATA.values())})
+    return df_t, df_c, df_to
+
+df_t, df_c, df_to = load_data()
+df = (df_t.merge(df_c, on="year").merge(df_to, on="year", how="left"))
+df = df[(df.year>=1990)&(df.year<=2024)].sort_values("year").reset_index(drop=True)
+df["decade"] = df.year.apply(
+    lambda y: "1990s" if y<2000 else ("2000s" if y<2010 else "2010s+"))
+df_t2 = df.dropna(subset=["tornadoes"])
+
+# ── Pre-compute all correlations in setup so every cell can use them ───────
+r_storms,  p_storms  = stats.pearsonr(df["temp"], df["storms"])
+r_intense, p_intense = stats.pearsonr(df["temp"], df["intense"])
+r_torn,    p_torn    = stats.pearsonr(df_t2["temp"], df_t2["tornadoes"])
+
+# ── Source annotation helper ───────────────────────────────────────────────
+def add_source(ax, text):
+    ax.text(0.99, 0.01, text, transform=ax.transAxes,
+            fontsize=8, color="#999999", ha="right", va="bottom",
+            style="italic")
+
+# ── Save helper ───────────────────────────────────────────────────────────
+def save_fig(name):
+    path = CHARTS_DIR / f"{name}.png"
+    plt.savefig(str(path), dpi=120, bbox_inches="tight", facecolor=C_BG)
+    plt.close("all")
+    return str(path)
+```
+
+
+## ⬆️ Earth Is Getting Warmer Every Year — Faster in Recent Years
+
+```{python}
+#| label: chart1
+#| fig-align: center
+#| out-width: 100%
+
+fig, ax = plt.subplots(figsize=(10, 4))
+
+# Color gradient to show acceleration: teal (1990s) → blue (2000s) → red (2010s+)
+for i in range(len(df)-1):
+    decade = df.iloc[i]["decade"]
+    color = DECADE_COLORS[decade]
+    ax.plot(df.year.iloc[i:i+2], df.temp.iloc[i:i+2], color=color, lw=3, zorder=3)
+
+ax.fill_between(df.year, 0, df.temp, alpha=0.08, color=C_TEMP)
+m, b = np.polyfit(df.year, df.temp, 1)
+ax.plot(df.year, m*df.year+b, "--", color="#333", lw=1.5, alpha=0.6,
+        label=f"Overall trend: +{m*10:.2f}°C/decade")
+
+ax.axhline(0, color="gray", lw=1, linestyle=":")
+ax.set_ylabel("Temperature change (°C)", fontsize=11)
+ax.set_xlabel("Year", fontsize=11)
+ax.set_title("⬆️ Earth Is Getting Warmer Every Year — Faster in Recent Years", 
+             fontsize=13, fontweight="bold")
+
+# Highlight hottest recent years
+for yr in [2023, 2024]:
+    row = df[df.year==yr]
+    if not row.empty:
+        ax.scatter(yr, row.temp.values[0], s=120, color="#e63946", zorder=5, edgecolors="white", lw=1)
+        ax.annotate(f"{yr}", xy=(yr, row.temp.values[0]),
+                    xytext=(yr, row.temp.values[0]+0.11),
+                    fontsize=9, fontweight="bold", color="#e63946", ha="center")
+
+ax.annotate("Last 10 years\nhottest ever",
+            xy=(2022.3, 1.21), xytext=(2018, 1.21),
+            fontsize=9, color="#e63946",
+            bbox=dict(boxstyle="round,pad=0.4", facecolor="yellow", alpha=0.3))
+
+# Add decade legend
+from matplotlib.patches import Patch
+legend_elements = [Patch(facecolor=DECADE_COLORS["1990s"], alpha=0.8, label="1990s"),
+                   Patch(facecolor=DECADE_COLORS["2000s"], alpha=0.8, label="2000s"),
+                   Patch(facecolor=DECADE_COLORS["2010s+"], alpha=0.8, label="2010s+")]
+ax.legend(handles=legend_elements, loc="upper left", fontsize=9, ncol=3, framealpha=0.9)
+
+add_source(ax, "Source: NASA GISTEMP v4")
+path = save_fig("chart1_temperature_rise")
+display(Image(path))
+```
+
+::: {style="font-size:0.88rem; color:#333; text-align:center; margin-top:0.5rem; font-weight:500;"}
+📊 **What this shows:** Color changes from teal (1990s) → blue (2000s) → RED (2010s+) to show how warming ACCELERATED. The warming trend is speeding up! Last decade was hottest on record.
+:::
+
+
+## 📊 What The Data Actually Shows
+
+```{python}
+#| label: honest_truth
+#| fig-align: center
+#| out-width: 100%
+
+fig, ax = plt.subplots(figsize=(10, 5))
+
+# Plot the actual data points
+ax.scatter(df.temp, df.intense, color="#457b9d", s=120, alpha=0.7, zorder=3)
+
+# Add year labels to see the timeline
+for _, row in df.iterrows():
+    ax.annotate(str(int(row.year)), 
+                xy=(row.temp, row.intense),
+                xytext=(5, 5), textcoords="offset points",
+                fontsize=8, alpha=0.7)
+
+# Add a simple trend line (shows NO relationship)
+m, b, r, p, se = stats.linregress(df.temp, df.intense)
+x_range = np.linspace(df.temp.min(), df.temp.max(), 100)
+ax.plot(x_range, m*x_range + b, '--', color="#888", lw=1.5, alpha=0.5)
+
+# Labels
+ax.set_xlabel("Earth's Temperature (°C warmer than 1950s)", fontsize=12, fontweight="bold")
+ax.set_ylabel("Category 3+ Storms per Year", fontsize=12, fontweight="bold")
+ax.set_title(" Is There Really a Pattern?", fontsize=14, fontweight="bold")
+
+# Honest annotation
+ax.text(0.6, 35, f"r = {r:.2f}\n(very weak correlation)", 
+        fontsize=11, ha="center", 
+        bbox=dict(boxstyle="round", facecolor="#fff3cd", alpha=0.9))
+
+# Highlight the truth
+ax.text(1.19, 18, "⚠️ No clear pattern!\nHotter years don't always\nmean more storms", 
+        fontsize=9, ha="center", color="#e63946",
+        bbox=dict(boxstyle="round", facecolor="#fdecea", alpha=0.8))
+
+add_source(ax, "Source: NOAA Storm Prediction Center · NASA GISTEMP v4")
+
+path = save_fig("honest_no_pattern")
+display(Image(path))
+```
+::: {style="font-size:0.82rem; color:#555; text-align:center; margin-top:0.5rem;"}
+🔍 **What this shows:** Before looking at real data, many people guess: "Hotter Earth = More storms." But when we look at the actual numbers, the story is more complicated. Temperature goes up (top). But storms go up AND down randomly (middle and bottom). This is why scientists use data — to test if our guesses are correct. Sometimes the data surprises us!
+:::
+
+
+## 🌪️ Tornadoes vs. Temperature
+
+```{python}
+#| label: chart3_simple
+#| fig-align: center
+#| out-width: 100%
+
+fig, ax1 = plt.subplots(figsize=(10, 5))
+
+# Plot tornadoes as simple bars
+ax1.bar(df_t2.year, df_t2.tornadoes, alpha=0.6, color="#f4a261", width=0.7)
+ax1.set_xlabel("Year", fontsize=12, fontweight="bold")
+ax1.set_ylabel("Tornadoes Reported in US", fontsize=11, fontweight="bold", color="#d4821f")
+ax1.tick_params(axis="y", labelcolor="#d4821f")
+ax1.set_xlim(1990, 2024)
+
+# Add a BIG shaded area for "The Radar Problem"
+ax1.axvspan(1990, 2005, alpha=0.2, color="gray", zorder=0)
+ax1.text(1997, 1500, "⚠️ NEW RADAR\n(We got better at finding tornadoes)", 
+         fontsize=9, ha="center", fontweight="bold", color="#555",
+         bbox=dict(boxstyle="round", facecolor="white", alpha=0.8))
+
+# Temperature on right axis
+ax2 = ax1.twinx()
+ax2.plot(df_t2.year, df_t2.temp, color="#e63946", lw=3, marker="o", markersize=3)
+ax2.set_ylabel("Earth's Temperature (°C warmer)", fontsize=11, fontweight="bold", color="#e63946")
+ax2.tick_params(axis="y", labelcolor="#e63946")
+
+# Simple title
+ax1.set_title(" Tornadoes Don't Follow The Same Pattern", fontsize=14, fontweight="bold", pad=15)
+
+# Big honest message on the chart
+ax1.text(2015, 500, "NO CLEAR PATTERN\nTornado counts go up and down\nbut don't match temperature rise", 
+         fontsize=10, ha="center", fontweight="bold", color="#e63946",
+         bbox=dict(boxstyle="round", facecolor="#fff3cd", alpha=0.95, edgecolor="#e63946", linewidth=2))
+
+add_source(ax1, "NOAA Storm Prediction Center · NASA GISTEMP · 1990-2024")
+
+path = save_fig("chart3_tornadoes_simple")
+display(Image(path))
+```
+
+
+
+::: {style="font-size:0.82rem; color:#555; text-align:center; margin-top:0.5rem;"}
+*"In 2005, Doppler radar was fully deployed across America. This improved our ability to detect tornadoes. After 2005, when detection methods became more consistent, tornado counts did not show a clear upward trend with temperature. This teaches us: when looking at data, always consider whether other factors—like changes in technology—might affect what we measure."*
+:::
+
+## 📊 What The Data Actually Shows: Temperature vs Storms
+
+```{python}
+#| label: chart4_honest
+#| fig-align: center
+#| out-width: 100%
+
+fig, ax = plt.subplots(figsize=(10, 5.5))
+
+# Scatter plot for intense storms only (clearer)
+for dec, grp in df.groupby("decade"):
+    ax.scatter(grp.temp, grp.intense, color=DECADE_COLORS[dec],
+               s=120, alpha=0.7, edgecolors="white", lw=1.5, 
+               label=f"{dec}", zorder=3)
+
+# Add a simple trend line (shows the truth)
+m, b, r, p, se = stats.linregress(df.temp, df.intense)
+xr = np.linspace(df.temp.min()-0.05, df.temp.max()+0.05, 100)
+ax.plot(xr, m*xr+b, "--", color="#666", lw=2, alpha=0.6, 
+        label=f"Trend line (r = {r:.2f})")
+
+# Add year labels to see the timeline
+for _, row in df.iterrows():
+    if row.year in [1990, 2000, 2010, 2015, 2020, 2024]:
+        ax.annotate(str(int(row.year)), 
+                    xy=(row.temp, row.intense),
+                    xytext=(8, 5), textcoords="offset points",
+                    fontsize=9, alpha=0.8, fontweight="bold")
+
+# Labels
+ax.set_xlabel("Earth's Temperature (°C warmer than 1950s)", fontsize=12, fontweight="bold")
+ax.set_ylabel("Category 3+ Storms per Year", fontsize=12, fontweight="bold")
+ax.set_title("Temperature vs. Dangerous Storms: What The Data Shows", 
+             fontsize=14, fontweight="bold", pad=15)
+
+# Honest annotation - BIG and CLEAR
+ax.text(0.65, 38, "⚠️ NO CLEAR PATTERN", 
+        fontsize=12, ha="center", fontweight="bold", color="#e63946",
+        bbox=dict(boxstyle="round,pad=0.5", facecolor="#fff3cd", alpha=0.95, edgecolor="#e63946", linewidth=2))
+
+ax.text(1.22, 20.3, "Hot year (2024) had FEWER storms\nthan cooler year (2015)", 
+        fontsize=9, ha="center", color="blue",
+        bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.8))
+
+
+
+# Legend
+ax.legend(loc="upper left", fontsize=10, framealpha=0.9)
+
+add_source(ax, "NOAA Storm Prediction Center · NASA GISTEMP · 1990-2024")
+path = save_fig("chart4_honest_scatter")
+display(Image(path))
+```
+
+::: {style="font-size:0.82rem; color:#555; text-align:center; margin-top:0.5rem;"}
+ 🎓 <strong>What do YOU see?</strong> Is there a clear pattern?<br> Scientists ask questions like this every day! 
+
+:::
+
+## 📊 Decade by Decade: Temperature Up, Storms Mixed
+
+```{python}
+#| label: chart6_honest
+#| fig-align: center
+#| out-width: 100%
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+
+decade_labels = ["1990s", "2000s", "2010s+"]
+dec_temp = [df[df.decade==d].temp.mean() for d in decade_labels]
+dec_storms = [df[df.decade==d].intense.mean() for d in decade_labels]
+bar_colors = [DECADE_COLORS[d] for d in decade_labels]
+
+# Left: Temperature (clear increase)
+b1 = ax1.bar(decade_labels, dec_temp, color=bar_colors, alpha=0.8, width=0.6)
+ax1.bar_label(b1, fmt="%.2f°C", fontsize=11, fontweight="bold", padding=5)
+ax1.set_title(" Temperature", fontsize=13, fontweight="bold")
+ax1.set_ylabel("Temperature Change (°C)", fontsize=11)
+ax1.set_ylim(0, max(dec_temp) * 1.2)
+ax1.grid(axis="y", alpha=0.3)
+
+# Right: Storms (shows the truth - no clear pattern)
+b2 = ax2.bar(decade_labels, dec_storms, color=bar_colors, alpha=0.8, width=0.6)
+ax2.bar_label(b2, fmt="%.1f", fontsize=11, fontweight="bold", padding=5)
+ax2.set_title("Dangerous Storms (Cat 3+)", fontsize=13, fontweight="bold")
+ax2.set_ylabel("Average Storms per Year", fontsize=11)
+ax2.set_ylim(0, max(dec_storms) * 1.2)
+ax2.grid(axis="y", alpha=0.3)
+
+fig.suptitle("Temperature Rose Steadily | Storm Pattern Was NOT Clear", 
+             fontsize=14, fontweight="bold", y=1.02)
+
+add_source(ax2, "NOAA Storm Prediction Center · NASA GISTEMP · 1990-2024")
+path = save_fig("chart6_honest")
+display(Image(path))
+```
+
+::: {style="font-size:0.82rem; color:#555; text-align:center; margin-top:0.5rem;"}
+📈 <strong>Temperature:</strong> Up every decade (CLEAR pattern)<br> 🌀 <strong>Storms:</strong> Up and down (NO clear pattern)<br> 🎓 <strong>Lesson:</strong> Not everything moves together in a simple way!
+::: 
+
+
+## 📊 Looking at the Spread: Year-to-Year Variation Matters
+
+```{python}
+#| label: chart7_boxplot
+#| fig-align: center
+#| out-width: 100%
+
+fig, ax = plt.subplots(figsize=(12, 6))
+
+# Create box plot data
+storm_by_decade = [df[df.decade==d].intense.values for d in ["1990s", "2000s", "2010s+"]]
+positions = [0, 1, 2]
+
+# Box plot
+bp = ax.boxplot(storm_by_decade, positions=positions, widths=0.5,
+                patch_artist=True, showmeans=True, meanline=True,
+                medianprops=dict(linewidth=2, color="black"),
+                meanprops=dict(linewidth=2, color="blue", linestyle="--"))
+
+# Color the boxes
+colors = ["#2a9d8f", "#457b9d", "#e63946"]
+box_names = ["1990s", "2000s", "2010s+"]
+for patch, color, name in zip(bp['boxes'], colors, box_names):
+    patch.set_facecolor(color)
+    patch.set_alpha(0.7)
+
+# Add individual points (all years)
+for i, decade in enumerate(["1990s", "2000s", "2010s+"]):
+    y = df[df.decade==decade].intense.values
+    x = np.random.normal(i, 0.05, size=len(y))
+    ax.scatter(x, y, alpha=0.6, color="white", edgecolors="#333", s=80, zorder=3)
+
+# Labels
+ax.set_xticks(positions)
+ax.set_xticklabels(["1990s", "2000s", "2010s+"], fontsize=13, fontweight="bold")
+ax.set_ylabel("Category 3+ Storms per Year", fontsize=12, fontweight="bold")
+ax.set_title("How Storm Numbers Vary Within Each Decade", fontsize=15, fontweight="bold", pad=15)
+
+# Set y-axis limits
+ax.set_ylim(10, 45)
+
+# Add annotation for box plot explanation
+ax.text(2.5, 42, "BOX = Middle 50% of years\n(25th to 75th percentile)", 
+        fontsize=9, ha="center", style="italic", color="#333",
+        bbox=dict(boxstyle="round,pad=0.3", facecolor="#e8f4f8", alpha=0.9))
+
+ax.text(2.5, 38, "- LINE = Median (middle value)", 
+        fontsize=8, ha="center", color="#333")
+
+ax.text(2.5, 35, "--Mean (average)", 
+        fontsize=8, ha="center", color="blue")
+
+# Highlight box lengths (variability)
+# 1990s box length
+ax.annotate("", xy=(0.2, 26), xytext=(0.2, 18),
+            arrowprops=dict(arrowstyle="<->", color="#2a9d8f", lw=2))
+ax.text(-0.3, 22, "Box Height =\nVariability", fontsize=8, ha="center", 
+        color="#2a9d8f", fontweight="bold", rotation=90)
+
+# 2000s box length
+ax.annotate("", xy=(1.2, 27), xytext=(1.2, 21),
+            arrowprops=dict(arrowstyle="<->", color="#457b9d", lw=2))
+
+# 2010s box length (LONGEST)
+ax.annotate("", xy=(2.2, 35), xytext=(2.2, 22),
+            arrowprops=dict(arrowstyle="<->", color="#e63946", lw=2.5))
+ax.text(2.31, 28, "⬅️ LONGEST BOX\nHighest variability!", fontsize=9, 
+        color="#e63946", fontweight="bold")
+
+# Add title for each decade's variability
+ax.text(0, 12, "Medium variability", fontsize=9, ha="center", color="#2a9d8f", fontweight="bold")
+ax.text(1, 12, "Lowest variability", fontsize=9, ha="center", color="#457b9d", fontweight="bold")
+ax.text(2, 12, "HIGHEST variability", fontsize=9, ha="center", 
+        color="#e63946", fontweight="bold")
+
+# Add a star/callout for 2010s
+ax.annotate("2010s: Most spread out\nSome years: FEW storms\nSome years: MANY storms", 
+            xy=(2, 30), xytext=(1.2, 38),
+            fontsize=9, ha="left", fontweight="bold", color="#e63946",
+            bbox=dict(boxstyle="round,pad=0.4", facecolor="#fff3cd", alpha=0.95, edgecolor="#e63946", linewidth=1.5),
+            arrowprops=dict(arrowstyle="->", color="#e63946", lw=1.5))
+
+add_source(ax, "NASA GISTEMP · 1990-2024")
+
+plt.tight_layout()
+path = save_fig("chart7_boxplot_explained")
+display(Image(path))
+```
+::: {style="font-size:0.82rem; color:#555; text-align:center; margin-top:0.5rem;"}
+🔍 <strong>KEY FINDING:</strong> 2010s+ have the LONGEST box— this means the 2010s had the HIGHEST year-to-year variability. Some years (like 2015) had ~40 intense storms, while others (like 2014) had only ~24. The 2000s had the SHORTEST box — storm counts were most consistent during that decade. 
+::: 
+
+
+
+
+
+## What We Learned: {background-color="#f8fafc"}
+
+<div style="font-size:1.05rem; line-height:2.3; max-width:900px;
+            margin:1.2rem auto 0; padding:0 1rem; text-align:left; ">
+            
+Three Things The Data Taught Us
+
+1. Earth Is Warming  — Temperature rose +0.84°C since 1990 — a clear, steady trend
+
+2. Storms Show No Simple Pattern  — Hot years don't always mean more storms — 2024 was hottest but had fewer storms than 2015
+
+3. Real Data Is Messy Science isn't always clean — variability is normal and important to understand
+
+
+🎓 The most important skill? Looking at data honestly — even when it surprises you.
+
+
+<p class="source", color="white">
+Data: NASA GISTEMP · NOAA IBTrACS · 1990–2024
+</p>
+
+</div>
+
+
+
+
+
+:::
