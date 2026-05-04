@@ -1,0 +1,222 @@
+---
+title: "Story 6"
+author: "Mehreen Gillani"
+format: html
+---
+
+```{python}
+
+import requests
+import pandas as pd
+import os
+
+OUT = "data"
+os.makedirs(OUT, exist_ok=True)
+
+# ── 1. Census SAIPE poverty by state (API, no key needed) ─────────────────
+url = (
+    "https://api.census.gov/data/2022/acs/acs1"
+    "?get=NAME,B17001_001E,B17001_002E&for=state:*"
+)
+
+r = requests.get(url, timeout=15)
+data = r.json()
+df_poverty = pd.DataFrame(data[1:], columns=data[0])
+df_poverty.columns = ["state", "total_pop", "below_poverty", "state_fips"]
+df_poverty["poverty_rate"] = (
+    df_poverty["below_poverty"].astype(float)
+    / df_poverty["total_pop"].astype(float) * 100
+).round(2)
+df_poverty.to_csv(f"{OUT}/poverty_by_state.csv", index=False)
+print(f"Poverty: {df_poverty.shape[0]} states saved")
+
+# ── 2. CDC BRFSS food hardship (Socrata API, no key needed) ───────────────
+url2 = "https://chronicdata.cdc.gov/resource/dttw-5yxu.json?$limit=5000"
+r2 = requests.get(url2, timeout=15)
+df_cdc = pd.DataFrame(r2.json())
+df_cdc.to_csv(f"{OUT}/cdc_brfss_food.csv", index=False)
+print(f"CDC BRFSS: {df_cdc.shape[0]} rows, columns: {list(df_cdc.columns)[:6]}")
+
+```
+
+
+```{python}
+import pandas as pd
+# replace with your actual filenames
+Poverty2023 = pd.read_excel("data/Poverty2023.xlsx", engine='openpyxl', skiprows=4)  # or .xlsx
+
+PopulationEstimates = pd.read_excel("data/PopulationEstimates.xlsx", sheet_name=0, engine='openpyxl')  # or .xlsx
+unemployment = pd.read_excel("data/Unemployment2023.xlsx", sheet_name=0, engine='openpyxl')  # or .xlsx
+
+print("Dataset 1:", Poverty2023.shape)
+
+print("Shape:", Poverty2023.shape)
+print("\nColumns:")
+for c in Poverty2023.columns:
+    print(" ", c)
+print("\nSample - state rows only:")
+state_rows = Poverty2023[Poverty2023["FIPS_Code"].astype(str).str.endswith("000")]
+print(state_rows[["Area_Name","PCTPOVALL_2023","PCTPOV017_2023","PCTPOV517_2023","MEDHHINC_2023"]].head(10))
+print(Poverty2023.head(10))
+
+
+print("\nDataset 2:", PopulationEstimates.shape)
+print(PopulationEstimates.columns.tolist())
+print(PopulationEstimates.head(10))
+print("\nDataset 3:", unemployment.shape)
+print(unemployment.columns.tolist())
+print(unemployment.head(10))
+```
+
+#### Poverty Dataset
+```{python}
+import pandas as pd
+
+df = pd.read_excel(
+    "data/Poverty2023.xlsx",
+    sheet_name="Poverty Data 2023",
+    skiprows=4
+)
+
+# ── Keep state-level rows only (FIPS ends in 000, exclude US total 00000) ──
+df["FIPS_Code"] = df["FIPS_Code"].astype(str).str.zfill(5)
+states = df[
+    df["FIPS_Code"].str.endswith("000") &
+    (df["FIPS_Code"] != "00000")
+].copy()
+
+# ── Keep only the columns we need ─────────────────────────────────────────
+cols = {
+    "Stabr": "state_abbr",
+    "Area_Name": "state",
+    "PCTPOVALL_2023": "poverty_all",
+    "PCTPOV017_2023": "poverty_children_u17",
+    "PCTPOV517_2023": "poverty_children_5to17",
+    "PCTPOV04_2023":  "poverty_children_u4",
+    "MEDHHINC_2023":  "median_income",
+    "POVALL_2023":    "pop_in_poverty",
+    "POV017_2023":    "children_in_poverty"
+}
+states = states[list(cols.keys())].rename(columns=cols)
+states = states.reset_index(drop=True)
+
+# ── Save ───────────────────────────────────────────────────────────────────
+states.to_csv("data/states_poverty_clean.csv", index=False)
+
+print("Rows:", len(states))
+print("\nMissing values:\n", states.isnull().sum())
+print("\nTop 10 by child poverty rate:")
+print(states.nlargest(10, "poverty_children_u17")[
+    ["state","poverty_all","poverty_children_u17","median_income"]
+])
+```
+
+#### Unemployment Dataset
+```{python}
+# ── 1. Load unemployment, state rows only ─────────────────────────────────
+unemp = pd.read_excel("data/Unemployment2023.xlsx", sheet_name=0, 
+                       skiprows=4, engine="openpyxl")
+
+unemp["FIPS_Code"] = unemp["FIPS_Code"].astype(str).str.zfill(5)
+states_unemp = unemp[
+    unemp["FIPS_Code"].str.endswith("000") &
+    (unemp["FIPS_Code"] != "00000")
+][["State", "Unemployment_rate_2023"]].copy()
+states_unemp.columns = ["state_abbr", "unemployment_rate"]
+states_unemp = states_unemp.reset_index(drop=True)
+print("Unemployment rows:", len(states_unemp))
+print(states_unemp.head())
+
+# ── 2. Load poverty clean ─────────────────────────────────────────────────
+poverty = pd.read_csv("data/states_poverty_clean.csv")
+
+# ── 3. Merge ──────────────────────────────────────────────────────────────
+merged = poverty.merge(states_unemp, on="state_abbr", how="left")
+print("\nMerged shape:", merged.shape)
+print("Missing unemployment:", merged["unemployment_rate"].isnull().sum())
+
+# ── 4. Quick correlation check ────────────────────────────────────────────
+from scipy import stats
+for col in ["poverty_all", "poverty_children_u17", "median_income"]:
+    r, p = stats.pearsonr(merged[col], merged["unemployment_rate"])
+    print(f"unemployment vs {col}: r={r:.3f}, p={p:.3f}")
+
+merged.to_csv("data/master_dataset.csv", index=False)
+print("\nSaved master_dataset.csv")
+print(merged[["state","poverty_all","poverty_children_u17",
+              "median_income","unemployment_rate"]].head(10))
+```
+
+#### Population Estimates Dataset
+
+```{python}
+import pandas as pd
+from scipy import stats
+
+# ── 1. Load population, state rows only ───────────────────────────────────
+pop = pd.read_excel("data/PopulationEstimates.xlsx", sheet_name=0,
+                    skiprows=4, engine="openpyxl")
+pop["FIPStxt"] = pop["FIPStxt"].astype(str).str.zfill(5)
+states_pop = pop[
+    pop["FIPStxt"].str.endswith("000") &
+    (pop["FIPStxt"] != "00000")
+][["State", "Area_Name", "POP_ESTIMATE_2023"]].copy()
+states_pop.columns = ["state_abbr", "state_name", "population_2023"]
+states_pop = states_pop.reset_index(drop=True)
+print("Population rows:", len(states_pop))
+
+# ── 2. Load poverty + merge population ────────────────────────────────────
+master = pd.read_csv("data/states_poverty_clean.csv")
+master = master.merge(states_pop[["state_abbr", "population_2023"]],
+                      on="state_abbr", how="left")
+
+# ── 3. Load unemployment + merge ──────────────────────────────────────────
+unemp = pd.read_excel("data/Unemployment2023.xlsx", sheet_name=0,
+                      skiprows=4, engine="openpyxl")
+unemp["FIPS_Code"] = unemp["FIPS_Code"].astype(str).str.zfill(5)
+states_unemp = unemp[
+    unemp["FIPS_Code"].str.endswith("000") &
+    (unemp["FIPS_Code"] != "00000")
+][["State", "Unemployment_rate_2023"]].copy()
+states_unemp.columns = ["state_abbr", "unemployment_rate"]
+master = master.merge(states_unemp, on="state_abbr", how="left")
+
+# ── 4. Derived columns ────────────────────────────────────────────────────
+master["people_in_poverty"] = (
+    master["population_2023"] * master["poverty_all"] / 100
+).round(0).astype(int)
+
+master["children_food_insecure_est"] = (
+    master["population_2023"] * 0.22 * master["poverty_children_u17"] / 100
+).round(0).astype(int)
+
+master["food_insecurity_proxy"] = (
+    0.6 * master["poverty_all"] + 0.4 * master["unemployment_rate"]
+).round(2)
+
+# ── 5. Correlations ───────────────────────────────────────────────────────
+print("\n=== PEARSON CORRELATIONS vs food_insecurity_proxy ===")
+for col in ["poverty_all", "poverty_children_u17", "poverty_children_u4",
+            "median_income", "unemployment_rate"]:
+    r, p = stats.pearsonr(master[col], master["food_insecurity_proxy"])
+    sig = "***" if p < 0.001 else "**" if p < 0.01 else "*" if p < 0.05 else ""
+    print(f"  {col:<30} r={r:.3f}  p={p:.4f} {sig}")
+
+# ── 6. Rankings ───────────────────────────────────────────────────────────
+print("\n=== TOP 10 MOST FOOD INSECURE STATES ===")
+print(master.nlargest(10, "food_insecurity_proxy")[
+    ["state", "food_insecurity_proxy", "poverty_all",
+     "poverty_children_u17", "unemployment_rate", "median_income"]
+].to_string(index=False))
+
+print("\n=== BOTTOM 5 (BEST OFF) ===")
+print(master.nsmallest(5, "food_insecurity_proxy")[
+    ["state", "food_insecurity_proxy", "poverty_all", "median_income"]
+].to_string(index=False))
+
+# ── 7. Save ───────────────────────────────────────────────────────────────
+master.to_csv("data/master_dataset.csv", index=False)
+print("\nmaster_dataset.csv saved — shape:", master.shape)
+print("Columns:", master.columns.tolist())
+```
+

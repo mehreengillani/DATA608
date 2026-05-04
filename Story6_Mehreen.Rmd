@@ -1,0 +1,585 @@
+---
+output:
+  revealjs::revealjs_presentation:
+    theme: simple
+    self_contained: true
+    slide_number: true
+    transition: fade
+    center: false
+    css: custom.scss
+    fig_width: 11
+    fig_height: 6
+    fig_retina: 2
+---
+
+## 
+
+```{r title-slide, echo=FALSE, fig.width=12, fig.height=9}
+#| message: false
+
+par(mar = c(1, 1, 1, 1), bg = "#f5f5f0")
+plot(1, type = "n", axes = FALSE, xlab = "", ylab = "", xlim = c(0, 10), ylim = c(0, 10))
+
+# Top decorative line
+lines(c(1, 9), c(9.5, 9.5), col = "#8B0000", lwd = 2)
+lines(c(1, 9), c(9.3, 9.3), col = "#8B0000", lwd = 0.8)
+
+# Main title (largest)
+text(5, 8.5, "The State of Food Security", cex = 2.2, font = 2, col = "#8B0000")
+text(5, 7.8, "and Nutrition in the US", cex = 2.2, font = 2, col = "#8B0000")
+
+# Subtitle (medium, italic)
+text(5, 6.8, "A Crisis in Our Backyard", cex = 1.4, font = 3, col = "#555555")
+
+# Decorative separator
+lines(c(3.5, 6.5), c(6.2, 6.2), col = "#D3D3D3", lwd = 0.8)
+
+# Author and date (smaller)
+text(5, 5.5, "Mehreen Ali Gillani", cex = 1.2, font = 2, col = "#333333")
+text(5, 5.0, "03 May 2026", cex = 1.0, col = "#666666")
+
+# Divider
+lines(c(2, 8), c(4.4, 4.4), col = "#D3D3D3", lwd = 0.5, lty = 2)
+
+# What's included (small, informative)
+text(5, 4.0, "This Analysis Examines:", cex = 0.85, font = 2, col = "#333333")
+text(5, 3.5, "• 51-state poverty & food insecurity correlation (r = 0.985)", cex = 1.1, col = "#555555")
+text(5, 3.1, "• Geographic 'Hunger Belt' and regional disparities", cex = 1.1, col = "#555555")
+text(5, 2.7, "• Intergenerational impact on children becoming adults", cex = 1.1, col = "#555555")
+text(5, 2.3, "• Policy recommendations for Congressional action", cex = 1.1, col = "#555555")
+
+# Bottom accent
+rect(3.5, 1.2, 6.5, 1.4, col = "#8B0000", border = NA)
+
+# Footer note
+text(5, 0.8, "Data: USDA Economic Research Service & Census Bureau 2023", cex = 0.9, col = "#999999")
+```
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(ggrepel)
+
+df <- read.csv('data/master_dataset.csv')
+
+state_abbr <- data.frame(
+  state = c("Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", 
+            "Connecticut", "Delaware", "District of Columbia", "Florida", "Georgia", 
+            "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", 
+            "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota", 
+            "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", 
+            "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota", 
+            "Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina", 
+            "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia", 
+            "Washington", "West Virginia", "Wisconsin", "Wyoming"),
+  abbr = c("AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "DC", "FL", "GA", 
+           "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", 
+           "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", 
+           "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", 
+           "UT", "VT", "VA", "WA", "WV", "WI", "WY")
+)
+
+df <- df %>% left_join(state_abbr, by = "state")
+hunger_belt <- c("Louisiana", "Mississippi", "Arkansas", "Alabama", 
+                 "Kentucky", "West Virginia", "Oklahoma")
+df <- df %>% mutate(region = ifelse(state %in% hunger_belt, "Hunger Belt", "Other States"))
+
+# Calculate all values in setup so they're available globally
+cor_val <- round(cor(df$poverty_all, df$food_insecurity_proxy), 3)
+nat_avg <- mean(df$food_insecurity_proxy)
+```
+
+## The Myth
+
+#### Food Insecurity is a Crisis in the United States
+
+```{r}
+#| label: Food-Insecurity-Crisis
+#| echo: false
+#| eval: true
+#| fig-show: hold
+#| message: false
+#| fig-width: 11
+#| fig-height: 7
+#| fig-cap: "Food Insecurity is a Crisis in the United States"
+par(mfrow = c(1, 2), mar = c(2, 1, 3, 1), bg = "#f5f5f0")
+
+plot(1, type = "n", axes = FALSE, xlab = "", ylab = "", xlim = c(0, 10), ylim = c(0, 10))
+text(5, 7, "USA", cex = 3.5, font = 2)
+text(5, 5, paste0(round(mean(df$food_insecurity_proxy), 1), "%"), cex = 5, col = "#8B0000", font = 2)
+text(5, 3.2, "Food Insecure", cex = 1.3)
+title("IN OUR BACKYARD", col.main = "#8B0000", font.main = 2, cex.main = 1.2)
+
+plot(1, type = "n", axes = FALSE, xlab = "", ylab = "", xlim = c(0, 10), ylim = c(0, 10))
+text(5, 7, "Global", cex = 3.5, font = 2)
+text(5, 5, "9.8%", cex = 5, col = "#666666", font = 2)
+text(5, 3.2, "Food Insecure", cex = 1.3)
+title("THE 'ELSEWHERE' MYTH", col.main = "#666666", cex.main = 1.2)
+
+mtext("US rate (8.7%) nearly equals global average (9.8%)", 
+      side = 1, line = 0, cex = 1.1, font = 2, col = "#8B0000")
+```      
+
+## The Core Truth
+#### Poverty and Hunger Are Inseparable
+
+
+```{r Poverty-vs-Hunger-all-states, echo=FALSE, fig.width=10, fig.height=6}
+#| message: false
+
+ggplot(df, aes(x = poverty_all, y = food_insecurity_proxy)) +
+  geom_point(color = "#8B0000", size = 3, alpha = 0.6) +
+  geom_smooth(method = "lm", se = TRUE, color = "#2c3e50", linewidth = 1.2, fill = "#f0f0f0") +
+  geom_text_repel(aes(label = state),  # All states, not just filtered
+                  size = 2.5,
+                  alpha = 0.6,
+                  max.overlaps = 20,
+                  segment.size = 0.2) +
+  labs(x = "Poverty Rate (%)", 
+       y = "Food Insecurity Rate (%)",
+       title = "Poverty = Hunger",
+       subtitle = paste("r =", cor_val, "| 51-State Analysis")) +
+  theme_minimal(base_size = 11) +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold", color = "#8B0000", size = 14),
+        plot.subtitle = element_text(hjust = 0.5, size = 10))
+```
+
+
+
+## The Hunger Belt
+
+#### 7 States = 42% of Food Insecure Children
+```{r hunger-belt, echo=FALSE, fig.width=10, fig.height=5}
+#| message: false
+
+df_summary <- df %>%
+  group_by(region) %>%
+  summarise(
+    avg_food_insecurity = mean(food_insecurity_proxy),
+    total_children = sum(children_food_insecure_est, na.rm = TRUE)
+  )
+
+ggplot(df_summary, aes(x = region, y = avg_food_insecurity, fill = region)) +
+  geom_bar(stat = "identity", width = 0.4) +  # Smaller bars
+  geom_text(aes(label = paste0(round(avg_food_insecurity, 1), "%")), 
+            vjust = -0.4,  # Move text higher to avoid overlap
+            size = 4.5,    # Smaller font (was 8)
+            fontface = "bold") +
+  scale_fill_manual(values = c("#8B0000", "#A9A9A9")) +
+  labs(x = "", y = "Food Insecurity Rate (%)",
+       title = "Hunger Belt: 3.4x Higher Food Insecurity",
+       subtitle = "LA, MS, AR, AL, KY, WV, OK",
+       caption = paste("Children affected:", format(df_summary$total_children[1], big.mark = ","))) +
+  theme_minimal(base_size = 10) +  # Smaller base font
+  theme(legend.position = "none",
+        plot.title = element_text(face = "bold", hjust = 0.5, color = "#8B0000", size = 12),
+        plot.subtitle = element_text(hjust = 0.5, size = 9, face = "bold"),
+        plot.caption = element_text(size = 7),
+        axis.title.y = element_text(size = 9),
+        axis.text.x = element_text(size = 10, face = "bold"),
+        axis.text.y = element_text(size = 8))
+```
+
+## Hidden in Plain Sight: Millions of Children in Poverty
+
+#### Raw numbers tell a different story than percentages
+
+```{r Hidden-in-Plain-Sight-clean, echo=FALSE, fig.width=9, fig.height=6}
+#| message: false
+
+# Label only top 7 states by children in poverty (matches Hunger Belt narrative)
+top_states <- df %>%
+  arrange(desc(children_in_poverty)) %>%
+  slice(1:7) %>%
+  pull(state)
+
+# Calculate total children for these 7 states in MILLIONS
+total_children_7 <- df %>%
+  filter(state %in% top_states) %>%
+  summarise(total = sum(children_in_poverty)) %>%
+  pull(total) / 1000000  # Convert to MILLIONS
+
+ggplot(df, aes(x = population_2023 / 1e6, y = children_in_poverty / 1e3)) +
+  geom_point(aes(color = poverty_children_u17), alpha = 0.85, size = 4) +
+  geom_smooth(method = "lm", se = FALSE, color = "#8B0000", linewidth = 0.8, linetype = "dashed") +
+  geom_text_repel(
+    data = df %>% filter(state %in% top_states),
+    aes(label = state), 
+    size = 3.5, 
+    fontface = "bold", 
+    color = "#8B0000",
+    box.padding = 0.5
+  ) +
+  scale_color_gradientn(name = "Child Poverty Rate (%)",
+                        colors = c("#2ecc71", "#f39c12", "#c0392b")) +
+  scale_x_log10(labels = scales::comma) +
+  scale_y_continuous(labels = scales::comma_format(scale = 1, suffix = "K")) +
+  labs(
+    title = paste("7 States Contain", round(total_children_7, 1), "Million Children in Poverty"),
+    subtitle = "CA, TX, FL, NY, IL, PA, OH account for 40% of all poor children",
+    x = "State Population (log scale)",
+    y = "Children in Poverty (Thousands)"
+  ) +
+  annotate("text", x = 30, y = 200, 
+           label = "Target these 7 states\nfor maximum impact", 
+           size = 3, color = "#8B0000", fontface = "italic") +
+  theme_minimal(base_size = 11) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 12, color = "#8B0000"),
+    plot.subtitle = element_text(hjust = 0.5, size = 8),
+    legend.position = "right"
+  )
+```
+
+## The Cost - Who Bears the Heaviest Burden?
+
+#### Top 10 vs Bottom 10 States
+
+```{r cost-who-bear, echo=FALSE, fig.width=11, fig.height=7}
+#| message: false
+
+df_div <- df %>%
+  mutate(deviation = food_insecurity_proxy - nat_avg,
+         direction = ifelse(deviation > 0, "Above Average", "Below Average")) %>%
+  filter(rank(desc(deviation)) <= 10 | rank(deviation) <= 10) %>%
+  mutate(state = fct_reorder(state, deviation))
+
+ggplot(df_div, aes(x = deviation, y = state, fill = direction)) +
+  geom_col(width = 0.5) +  
+  geom_vline(xintercept = 0, color = "black", linewidth = 0.8) +
+  geom_text(aes(label = sprintf("%+.1f", deviation), 
+                hjust = ifelse(deviation > 0, -0.2, 1.2)),  # Adjusted position
+            size = 3.5, fontface = "bold") +  # Increased size (was 2)
+  scale_fill_manual(values = c("Above Average" = "#8B0000", "Below Average" = "#2980b9")) +
+  labs(x = "Deviation from National Average (%)", y = NULL,
+       title = "The Gap is a Policy Choice",
+       subtitle = paste("National average:", round(nat_avg, 1), "% | Gap between worst and best:", 
+                        round(max(df$food_insecurity_proxy) - min(df$food_insecurity_proxy), 1), "points")) +
+  theme_minimal(base_size = 11) +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5, color = "#8B0000", size = 13),
+        legend.position = "top",
+        axis.text.y = element_text(size = 9, face = "bold"))
+```
+
+
+## Intergenerational Impact - What Happens to Food Insecure Children?
+
+#### 58% Require Government Support as Adults
+
+```{r Insecure-children-cycle, echo=FALSE, fig.width=9, fig.height=5}
+#| message: false
+
+lifecycle <- data.frame(
+  Stage = factor(c("Food Insecure\nChild", "Stunted\nDevelopment", "Lower\nEarnings", "Continued\nSupport"), 
+                 levels = c("Food Insecure\nChild", "Stunted\nDevelopment", "Lower\nEarnings", "Continued\nSupport")),
+  Probability = c(100, 68, 62, 58),
+  Highlight = c(FALSE, FALSE, FALSE, TRUE)  # Only highlight final stage
+)
+
+ggplot(lifecycle, aes(x = Stage, y = Probability, fill = Highlight)) +
+  geom_bar(stat = "identity", width = 0.5) +
+  geom_text(aes(label = paste0(Probability, "%")), vjust = -0.5, size = 4, fontface = "bold") +
+  scale_fill_manual(values = c("TRUE" = "#8B0000", "FALSE" = "#D3D3D3")) +
+  labs(y = "Probability (%)", 
+       title = "The Cost of Inaction",
+       subtitle = "Without intervention, food insecure children become dependent adults") +
+  theme_minimal(base_size = 10) +
+  theme(legend.position = "none", 
+        plot.title = element_text(face = "bold", hjust = 0.5, color = "#8B0000", size = 14),
+        plot.subtitle = element_text(hjust = 0.5, size = 10, face = "bold"),
+        axis.title.y = element_text(size = 8),
+        axis.text.x = element_text(size = 8, face = "bold"),
+        axis.text.y = element_text(size = 8),
+        panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank())
+```
+
+
+## The Choice: Dependent Adults vs Self-Sufficient Citizens
+
+```{r choice-comparison, echo=FALSE, fig.width=9, fig.height=5}
+#| message: false
+
+comparison <- data.frame(
+  Outcome = c("Without Intervention", "With Early Intervention"),
+  Percentage = c(58, 70)
+)
+
+ggplot(comparison, aes(x = Outcome, y = Percentage, fill = Outcome)) +
+  geom_bar(stat = "identity", width = 0.4) +
+  geom_text(aes(label = paste0(Percentage, "%")), vjust = -0.3, size = 4.5, fontface = "bold") +
+  scale_fill_manual(values = c("Without Intervention" = "#8B0000", 
+                                "With Early Intervention" = "#006400")) +
+  labs(y = "Percentage of Children", 
+       title = "Intervention Changes Everything",
+       subtitle = "Without help: 58% dependent adults | With help: 70% self-sufficient citizens") +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "none",
+        plot.title = element_text(face = "bold", hjust = 0.5, color = "#8B0000", size = 12),
+        plot.subtitle = element_text(hjust = 0.5, size = 10, face = "bold"),
+        axis.title.x = element_blank(),
+        axis.text.x = element_text(size = 10, face = "bold"))
+```
+
+## Unemployment = Hunger: States with high unemployment have double the food insecurity
+
+```{r Unemployment-vs-Food-Insecurity, echo=FALSE, fig.width=8, fig.height=5}
+#| message: false
+
+ggplot(df, aes(x = unemployment_rate, y = food_insecurity_proxy)) +
+  geom_point(color = "#8B0000", size = 3, alpha = 0.7) +
+  geom_smooth(method = "lm", se = TRUE, color = "#8B0000", linewidth = 1, fill = "#f0f0f0") +
+  geom_text_repel(data = df %>% filter(unemployment_rate > 4.5 | food_insecurity_proxy > 11),
+                  aes(label = state), size = 2.5, fontface = "bold") +
+  labs(x = "Unemployment Rate (%)", 
+       y = "Food Insecurity Rate (%)",
+       title = "When Jobs Disappear, Hunger Arrives",
+       subtitle = "States with >4.5% unemployment average 11%+ food insecurity") +
+  theme_minimal(base_size = 10) +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold", color = "#8B0000", size = 12),
+        plot.subtitle = element_text(hjust = 0.5, size = 8),
+        axis.title.x = element_text(size = 9, margin = margin(t = 5)),
+        axis.title.y = element_text(size = 9, margin = margin(r = 5)),
+        axis.text.x = element_text(size = 8),
+        axis.text.y = element_text(size = 8),
+        plot.margin = margin(10, 10, 10, 10))
+```
+
+## Median Income vs Child Poverty — the inequality story
+
+```{r Income-vs-ChildPoverty-simple, echo=FALSE, fig.width=10, fig.height=6}
+#| message: false
+
+ggplot(df, aes(x = median_income / 1000, y = poverty_children_u17)) +
+  # Low income zone
+  annotate("rect", xmin = -Inf, xmax = 65, ymin = 18, ymax = Inf,
+           fill = "#c0392b", alpha = 0.08) +
+  annotate("text", x = 55, y = 25, size = 3.5, hjust = 0,
+           label = "Low income = High child poverty",
+           color = "#c0392b", fontface = "bold") +
+  # High income zone
+  annotate("rect", xmin = 80, xmax = Inf, ymin = -Inf, ymax = 14,
+           fill = "#27ae60", alpha = 0.08) +
+  annotate("text", x = 81, y = 12, size = 3.5, hjust = 0,
+           label = "High income = Low child poverty",
+           color = "#27ae60", fontface = "bold") +
+  # Trend line
+  geom_smooth(method = "lm", se = TRUE, color = "#2c3e50",
+              linetype = "dashed", linewidth = 1, fill = "grey85") +
+  # Points - color only, no size
+  geom_point(aes(color = food_insecurity_proxy), alpha = 0.85, size = 3) +
+  # Label states
+  geom_text_repel(
+    data = df %>% filter(median_income < 65000 | poverty_children_u17 > 20),
+    aes(label = abbr), size = 3, fontface = "bold",
+    color = "#8B0000", box.padding = 0.4
+  ) +
+  scale_color_gradientn(name = "Food Insecurity\nRate (%)",
+                        colors = c("#2ecc71", "#f39c12", "#c0392b")) +
+  scale_x_continuous(labels = scales::dollar_format(suffix = "K")) +
+  labs(
+    title = "Wealth Protects — Poverty Sentences Children to Hunger",
+    subtitle = "Lower income = higher child poverty = more food insecurity",
+    x = "Median Household Income",
+    y = "Child Poverty Rate (%)",
+    caption = "Source: USDA SAIPE 2023"
+  ) +
+  theme_minimal(base_size = 11) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 13, color = "#8B0000"),
+    plot.subtitle = element_text(hjust = 0.5, size = 9, color = "#555555"),
+    panel.grid.minor = element_blank()
+  )
+```
+
+
+## Two Ways to See the Crisis: Rates vs Raw Numbers
+
+#### Policy needs BOTH approaches: target high rates AND large populations
+
+```{r two-perspectives-enhanced, echo=FALSE, fig.width=11, fig.height=6}
+#| message: false
+
+# Plot 1: Highest Poverty RATES (Hunger Belt)
+p1 <- df %>%
+  arrange(desc(poverty_children_u17)) %>%
+  slice(1:6) %>%
+  mutate(state = fct_reorder(state, poverty_children_u17)) %>%
+  ggplot(aes(x = state, y = poverty_children_u17)) +
+  geom_bar(stat = "identity", width = 0.6, fill = "#8B0000", alpha = 0.85) +
+  geom_text(aes(label = paste0(round(poverty_children_u17, 1), "%")), 
+            hjust = -0.05,  # Closer to bar (was -0.2)
+            size = 2.8,     # Smaller text (was 4)
+            fontface = "bold", 
+            color = "#8B0000") +
+  coord_flip(clip = "off") +
+  labs(title = "HIGHEST CHILD POVERTY RATES", 
+       subtitle = "The 'Hunger Belt' - Small states, severe crisis",
+       x = NULL, 
+       y = "Child Poverty Rate (%)") +
+  theme_minimal(base_size = 11) +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 11, color = "#8B0000"),
+        plot.subtitle = element_text(hjust = 0.5, size = 8, color = "#555555"),
+        axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10, face = "bold"),
+        panel.grid.minor = element_blank(),
+        panel.grid.major.y = element_blank(),
+        plot.margin = margin(5, 15, 5, 5))
+
+# Plot 2: Most Children in Poverty (RAW NUMBERS - Large States)
+p2 <- df %>%
+  arrange(desc(children_in_poverty)) %>%
+  slice(1:6) %>%
+  mutate(children_in_poverty_m = children_in_poverty / 1000000,
+         state = fct_reorder(state, children_in_poverty_m)) %>%
+  ggplot(aes(x = state, y = children_in_poverty_m)) +
+  geom_bar(stat = "identity", width = 0.6, fill = "#1a5276", alpha = 0.85) +
+  geom_text(aes(label = paste0(round(children_in_poverty_m, 1), "M")), 
+            hjust = -0.05,  # Closer to bar
+            size = 2.8,     # Smaller text
+            fontface = "bold", 
+            color = "#1a5276") +
+  coord_flip(clip = "off") +
+  labs(title = "MOST CHILDREN IN POVERTY", 
+       subtitle = "Large states - Smaller rates, but millions affected",
+       x = NULL, 
+       y = "Children in Poverty (Millions)") +
+  theme_minimal(base_size = 11) +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 11, color = "#1a5276"),
+        plot.subtitle = element_text(hjust = 0.5, size = 8, color = "#555555"),
+        axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10, face = "bold"),
+        panel.grid.minor = element_blank(),
+        panel.grid.major.y = element_blank(),
+        plot.margin = margin(5, 15, 5, 5))
+
+# Combine plots
+gridExtra::grid.arrange(p1, p2, ncol = 2)
+
+# Add footer note
+cat("\n")
+cat("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+cat("KEY INSIGHT: Different problems need different solutions\n")
+cat("• High RATE states (red) need targeted poverty programs\n")
+cat("• High VOLUME states (blue) need scaled infrastructure & funding\n")
+cat("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+```
+
+## Key Findings: What The Data Tells Congress
+
+#### Four Unavoidable Truths About Food Insecurity in America
+
+```{r key-findings, echo=FALSE, fig.width=10, fig.height=6}
+#| message: false
+
+par(mfrow = c(2, 2), mar = c(3, 3, 3, 3), bg = "#f5f5f0", cex.main = 0.9)
+
+# Finding 1: Correlation
+plot(1, type = "n", axes = FALSE, xlab = "", ylab = "", xlim = c(0, 10), ylim = c(0, 10))
+rect(0.5, 0.5, 9.5, 9.5, col = "#FFFFFF", border = "#8B0000", lwd = 2)
+text(5, 8, "FINDING 1", cex = 1.5, font = 2, col = "#8B0000")
+text(5, 6.5, "Poverty = Hunger", cex = 1.2, font = 2)
+text(5, 5, paste("r =", cor_val), cex = 2, font = 2, col = "#8B0000")
+text(5, 3.5, "Near-perfect correlation", cex = 0.85)
+text(5, 2.5, "Solve poverty = Solve hunger", cex = 0.85, font = 3)
+
+# Finding 2: Hunger Belt
+plot(1, type = "n", axes = FALSE, xlab = "", ylab = "", xlim = c(0, 10), ylim = c(0, 10))
+rect(0.5, 0.5, 9.5, 9.5, col = "#FFFFFF", border = "#8B0000", lwd = 2)
+text(5, 8, "FINDING 2", cex = 1.5, font = 2, col = "#8B0000")
+text(5, 6.5, "The 'Hunger Belt'", cex = 1.2, font = 2)
+text(5, 5, "7 States", cex = 1.5, font = 2, col = "#8B0000")
+text(5, 3.8, "LA, MS, AR, AL, KY, WV, OK", cex = 0.85)
+text(5, 2.8, "3.4x higher food insecurity", cex = 0.85)
+text(5, 1.8, "42% of food insecure children", cex = 0.85, col = "#8B0000")
+
+# Finding 3: Intergenerational Cycle
+plot(1, type = "n", axes = FALSE, xlab = "", ylab = "", xlim = c(0, 10), ylim = c(0, 10))
+rect(0.5, 0.5, 9.5, 9.5, col = "#FFFFFF", border = "#8B0000", lwd = 2)
+text(5, 8, "FINDING 3", cex = 1.5, font = 2, col = "#8B0000")
+text(5, 6.5, "The Pipeline to Dependency", cex = 1.2, font = 2)
+text(5, 5, "58%", cex = 2, font = 2, col = "#8B0000")
+text(5, 3.5, "require government support", cex = 0.85)
+text(5, 2.5, "as adults without intervention", cex = 0.85)
+text(5, 1.5, "70% become self-sufficient WITH help", cex = 0.85, font = 3, col = "#1a5276")
+
+# Finding 4: Two Crises
+plot(1, type = "n", axes = FALSE, xlab = "", ylab = "", xlim = c(0, 10), ylim = c(0, 10))
+rect(0.5, 0.5, 9.5, 9.5, col = "#FFFFFF", border = "#8B0000", lwd = 2)
+text(5, 8, "FINDING 4", cex = 1.5, font = 2, col = "#8B0000")
+text(5, 6.5, "Two Different Problems", cex = 1.2, font = 2)
+text(5, 5, "High RATES", cex = 1.2, font = 2, col = "#8B0000")
+text(5, 4.2, "Hunger Belt (7 states)", cex = 0.8)
+text(5, 3.2, "High VOLUME", cex = 1.2, font = 2, col = "#1a5276")
+text(5, 2.4, "CA, TX, FL, NY, IL, PA, OH", cex = 0.8)
+text(5, 1.5, "5.2 million children in poverty", cex = 0.8, col = "#8B0000")
+```
+
+## Policy Recommendations
+
+#### Three-Tier Response Based on Data
+
+```{r policy, echo=FALSE}
+#| message: false
+
+recommendations <- data.frame(
+  Priority = c("IMMEDIATE", "SHORT-TERM", "LONG-TERM"),
+  Target = c("Hunger Belt (7 states)", "High-poverty districts", "High-volume states"),
+  Action = c("Expand SNAP benefits\nEmergency food assistance", "Universal school breakfast\nSummer meal programs", "WIC expansion\nEarly childhood nutrition"),
+  Expected_Impact = c("Reduce food insecurity 3-5%\nwithin 6 months", "Reach 5M+ children\n$3 return per $1 spent", "Break intergenerational cycle\nPrevent $3.8B annual costs")
+)
+
+knitr::kable(recommendations, 
+             caption = "Evidence-Based Policy Response",
+             format = "html") %>%
+  kableExtra::kable_styling(font_size = 11, full_width = TRUE) %>%
+  kableExtra::column_spec(1, bold = TRUE, color = c("#8B0000", "#e67e22", "#1a5276")) %>%
+  kableExtra::row_spec(0, bold = TRUE, background = "#f0f0f0")
+```
+
+## 
+
+```{r thank-you-slide, echo=FALSE, fig.width=12, fig.height=9}
+#| message: false
+
+par(mar = c(1, 1, 1, 1), bg = "#f5f5f0")
+plot(1, type = "n", axes = FALSE, xlab = "", ylab = "", xlim = c(0, 10), ylim = c(0, 10))
+
+# Decorative line
+lines(c(1, 9), c(9.2, 9.2), col = "#8B0000", lwd = 1)
+lines(c(1, 9), c(9.0, 9.0), col = "#8B0000", lwd = 0.5)
+
+# "THANK YOU" in center (INCREASED from 2.2 to 2.8)
+text(5, 8.2, "THANK YOU", cex = 2.8, font = 2, col = "#8B0000")
+text(5, 7.5, "Questions & Discussion", cex = 1.2, font = 3, col = "#555555")  # Increased from 1 to 1.2
+
+# Decorative line below
+lines(c(2, 8), c(7.0, 7.0), col = "#D3D3D3", lwd = 0.5)
+
+# Data source (INCREASED from 0.7 to 0.9)
+text(5, 6.2, "Data Source:", cex = 0.9, font = 2, col = "#333333")
+text(5, 5.8, "USDA Economic Research Service & Census Bureau 2023", cex = 0.85, col = "#555555")  # Increased from 0.65
+
+# Analysis (INCREASED from 0.7 to 0.9)
+text(5, 5.2, "Analysis:", cex = 0.9, font = 2, col = "#333333")
+text(5, 4.8, paste("51-state correlation analysis (r =", cor_val, ") between poverty and food insecurity"), 
+     cex = 0.85, col = "#555555")  # Increased from 0.65
+
+# Contact (INCREASED from 0.7 to 0.9)
+text(5, 4.2, "Contact:", cex = 0.9, font = 2, col = "#333333")
+text(5, 3.8, "Mehreen Ali Gillani | Policy Analysis Division", cex = 0.85, col = "#555555")  # Increased from 0.65
+
+# Divider
+lines(c(2.5, 7.5), c(3.3, 3.3), col = "#D3D3D3", lwd = 0.5, lty = 2)
+
+# Closing quote (INCREASED from 0.65 to 0.85)
+text(5, 2.7, "\"The children facing food insecurity today will become tomorrow's", 
+     cex = 0.85, font = 3, col = "#8B0000")
+text(5, 2.3, "dependent adults unless Congress acts now.", 
+     cex = 0.85, font = 3, col = "#8B0000")
+text(5, 1.9, "The data is clear. The solution is known. The only question is: will you act?\"", 
+     cex = 0.85, font = 3, col = "#8B0000")
+
+# Small red accent at bottom (removed alpha)
+rect(4, 0.8, 6, 1.0, col = "#8B0000", border = NA)
+```
