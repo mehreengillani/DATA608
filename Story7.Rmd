@@ -1,0 +1,736 @@
+---
+output:
+  pdf_document:
+    latex_engine: xelatex
+    toc: false
+    keep_tex: false
+  html_document:
+    toc: false
+    df_print: paged
+  revealjs::revealjs_presentation:
+    theme: simple
+    self_contained: true
+    slide_number: true
+    transition: fade
+    center: false
+    css: custom.scss
+    fig_width: 11
+    fig_height: 6
+    fig_retina: 2
+always_allow_html: true
+---
+
+## 
+
+```{r title-slide, echo=FALSE, fig.width=12, fig.height=9}
+#| message: false
+
+library(jpeg)
+library(grid)
+
+# Load the image
+img <- readJPEG("1.jpeg")
+
+# Create the plot
+par(mar = c(1, 1, 1, 1), bg = "#E8EDE0")
+plot(1, type = "n", axes = FALSE, xlab = "", ylab = "", xlim = c(0, 10), ylim = c(0, 10))
+
+# Add image as background (semi-transparent watermark effect) - LARGER and MORE OPAQUE
+rasterImage(img, xleft = 0.8, xright = 9.5, ybottom = 1.0, ytop = 9.5)
+
+# Add semi-transparent white overlay to make text readable - LESS TRANSPARENT
+rect(0, 0, 12, 12, col = "#FFFFFFB3", border = NA)
+
+# Top decorative line
+lines(c(1, 9), c(9.5, 9.5), col = "#8B0000", lwd = 2)
+lines(c(1, 9), c(9.3, 9.3), col = "#8B0000", lwd = 0.8)
+
+# Main title
+text(5, 8.5, "America's Hidden Vulnerability", cex = 2.2, font = 2, col = "#8B0000")
+text(5, 7.8, "Critical Minerals Supply Chain Dependencies", cex = 2.0, font = 2, col = "#8B0000")
+
+# Subtitle
+text(5, 6.8, "Why 46% of Our Strategic Minerals Depend on Competitor Nations", cex = 1.3, font = 3, col = "#2d2d2d")
+
+# Decorative separator
+lines(c(3.5, 6.5), c(6.2, 6.2), col = "#8B0000", lwd = 0.8)
+
+# Author and date
+text(5, 5.5, "Mehreen Ali Gillani", cex = 1.2, font = 2, col = "#2d2d2d")
+text(5, 5.0, "12 May 2026", cex = 1.0, col = "#555555")
+
+# Divider
+lines(c(2, 8), c(4.5, 4.5), col = "#D3D3D3", lwd = 0.5, lty = 2)
+
+# What's included
+text(5, 4.1, "This Analysis Examines:", cex = 0.9, font = 2, col = "#2d2d2d")
+text(5, 3.7, "• 54 critical minerals and their primary suppliers", cex = 0.85, col = "#444444")
+text(5, 3.3, "• Import dependency rates across competitor/ally/neutral nations", cex = 0.85, col = "#444444")
+text(5, 2.9, "• Supply chain risk scores and stress categories", cex = 0.85, col = "#444444")
+text(5, 2.5, "• Policy recommendations for supply chain security", cex = 0.85, col = "#444444")
+
+# Course info
+text(5, 1.9, "DATA 608 - Knowledge & Visual Data Analytics", cex = 0.85, font = 2, col = "#2d2d2d")
+text(5, 1.5, "Supervised by: Prof. Peter Kowalchuk", cex = 1.0, col = "#555555")
+
+# Bottom accent
+rect(3.5, 1.0, 6.5, 1.2, col = "#8B0000", border = NA)
+
+# Footer note
+text(5, 0.6, "Data: USGS Mineral Commodity Summaries 2023-2024", cex = 0.65, col = "#999999")
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+
+library(tidyverse)
+library(ggplot2)
+library(ggrepel)
+library(RColorBrewer)
+
+# Load data
+critical_minerals <- read_csv("critical_minerals_combined.csv")
+
+# Calculate key metrics
+competitor_pct <- round(sum(critical_minerals$primary_alignment == "Competitor")/54 * 100, 0)
+critical_pct <- round(sum(critical_minerals$stress_category == "Critical")/54 * 100, 0)
+avg_import <- round(mean(critical_minerals$net_import_pct), 0)
+china_minerals <- sum(critical_minerals$primary_supplier == "China")
+```
+
+## The Strategic Reality
+
+### Critical Minerals: The Foundation of Modern America
+
+```{r}
+#| message: false
+
+par(mfrow = c(1, 2), mar = c(2, 1, 3, 1), bg = "#E8EDE0")
+
+# Left panel - Critical minerals
+plot(1, type = "n", axes = FALSE, xlab = "", ylab = "", xlim = c(0, 10), ylim = c(0, 10))
+text(5, 7.5, "What Are They?", cex = 1.4, font = 2, col = "#8B0000")
+text(5, 6.0, "Critical Minerals are essential to:", cex = 0.9, font = 2)
+text(5, 5.2, "• National Defense (radar, guided missiles)", cex = 0.85)
+text(5, 4.6, "• Clean Energy (EV batteries, solar panels)", cex = 0.85)
+text(5, 4.0, "• Technology (smartphones, semiconductors)", cex = 0.85)
+text(5, 3.4, "• Medical Devices (MRI machines, implants)", cex = 0.85)
+title("WHAT IF SUPPLY FAILS?", col.main = "#8B0000", font.main = 2, cex.main = 1.0)
+
+# Right panel - US vs Global
+plot(1, type = "n", axes = FALSE, xlab = "", ylab = "", xlim = c(0, 10), ylim = c(0, 10))
+text(5, 7.5, "The China Factor", cex = 1.4, font = 2, col = "#8B0000")
+text(5, 6.0, paste0("China supplies ", china_minerals, " of the 54"), cex = 1.0, font = 2)
+text(5, 5.2, "critical minerals (46%)", cex = 1.2, col = "#8B0000", font = 2)
+text(5, 4.0, "Dominance in:", cex = 0.9, font = 2)
+text(5, 3.4, "• Rare Earth Elements (100% import)", cex = 0.85)
+text(5, 2.8, "• Battery metals (Lithium, Cobalt)", cex = 0.85)
+text(5, 2.2, "• Semiconductor materials (Gallium)", cex = 0.85)
+title("STRATEGIC VULNERABILITY", col.main = "#8B0000", font.main = 2, cex.main = 1.0)
+
+mtext("No other nation has this level of concentrated control", 
+      side = 1, line = 0, cex = 1.0, font = 2, col = "#8B0000")
+```
+
+## THE GLOBAL SUPPLY LANDSCAPE 
+### Allies, Neutrals & Competitors
+
+```{r}
+#| message: false
+
+
+# Create summary tables
+competitor_list <- critical_minerals %>%
+  filter(primary_alignment == "Competitor") %>%
+  count(primary_supplier, sort = TRUE) %>%
+  mutate(Rank = row_number(),
+         Supplier = primary_supplier,
+         Minerals = n,
+         `Risk Level` = case_when(
+           primary_supplier == "China" ~ "Critical (18)",
+           primary_supplier == "Russia" ~ "High",
+           TRUE ~ "Moderate"
+         )) %>%
+  select(Supplier, Minerals, `Risk Level`) %>%
+  head(6)
+
+ally_list <- critical_minerals %>%
+  filter(primary_alignment == "Ally") %>%
+  count(primary_supplier, sort = TRUE) %>%
+  mutate(Supplier = primary_supplier,
+         Minerals = n) %>%
+  select(Supplier, Minerals) %>%
+  head(6)
+
+neutral_list <- critical_minerals %>%
+  filter(primary_alignment == "Neutral") %>%
+  count(primary_supplier, sort = TRUE) %>%
+  mutate(Supplier = primary_supplier,
+         Minerals = n) %>%
+  select(Supplier, Minerals) %>%
+  head(6)
+
+# Create a text-based display
+par(mar = c(1, 1, 1, 1), bg = "#E8EDE0")
+plot(1, type = "n", axes = FALSE, xlab = "", ylab = "", xlim = c(0, 10), ylim = c(0, 10))
+
+# Title
+text(5, 9.2, "TOP SUPPLIER NATIONS FOR US CRITICAL MINERALS", cex = 1.2, font = 2, col = "#8B0000")
+text(5, 8.7, "By Country Alignment Category", cex = 0.9, font = 3, col = "#555555")
+lines(c(1.5, 8.5), c(8.5, 8.5), col = "#D3D3D3", lwd = 0.5)
+
+# COMPETITOR section (Left)
+text(2.2, 7.8, "COMPETITOR NATIONS", cex = 0.9, font = 2, col = "#8B0000")
+rect(0.8, 5.2, 3.8, 7.6, col = "#FFF5F5", border = "#8B0000", lwd = 1.5)
+
+text(2.2, 7.2, "1. China", cex = 0.85, font = 2, col = "#2d2d2d")
+text(2.2, 6.8, "   → 25 minerals (46%)", cex = 0.75, col = "#8B0000", font = 3)
+text(2.2, 6.4, "   → 18 at Critical stress", cex = 0.7, col = "#555555")
+text(2.2, 6.0, "2. Russia", cex = 0.85, font = 2, col = "#2d2d2d")
+text(2.2, 5.6, "   → Vanadium", cex = 0.7, col = "#555555")
+
+# ALLY section (Center)
+text(5, 7.8, "ALLY NATIONS", cex = 0.9, font = 2, col = "#2c7fb8")
+rect(3.2, 4.5, 6.8, 7.6, col = "#F0F5FF", border = "#2c7fb8", lwd = 1.5)
+
+text(5, 7.2, "1. Canada", cex = 0.85, font = 2, col = "#2d2d2d")
+text(5, 6.8, "2. Norway", cex = 0.85, font = 2, col = "#2d2d2d")
+text(5, 6.4, "3. Australia", cex = 0.85, font = 2, col = "#2d2d2d")
+text(5, 6.0, "4. Japan", cex = 0.85, font = 2, col = "#2d2d2d")
+text(5, 5.6, "5. Germany", cex = 0.85, font = 2, col = "#2d2d2d")
+text(5, 5.2, "6. Mexico", cex = 0.85, font = 2, col = "#2d2d2d")
+text(5, 4.8, "7. United Kingdom", cex = 0.85, font = 2, col = "#2d2d2d")
+
+# NEUTRAL section (Right)
+text(7.8, 7.8, "NEUTRAL NATIONS", cex = 0.9, font = 2, col = "#666666")
+rect(6.2, 5.2, 9.2, 7.6, col = "#F8F8F8", border = "#999999", lwd = 1.5)
+
+text(7.8, 7.2, "1. South Africa", cex = 0.85, font = 2, col = "#2d2d2d")
+text(7.8, 6.8, "2. Brazil", cex = 0.85, font = 2, col = "#2d2d2d")
+text(7.8, 6.4, "3. Chile", cex = 0.85, font = 2, col = "#2d2d2d")
+text(7.8, 6.0, "4. India", cex = 0.85, font = 2, col = "#2d2d2d")
+text(7.8, 5.6, "5. Kazakhstan", cex = 0.85, font = 2, col = "#2d2d2d")
+
+# Bottom summary
+lines(c(1.5, 8.5), c(4.2, 4.2), col = "#D3D3D3", lwd = 0.5)
+text(5, 3.7, "KEY TAKEAWAY", cex = 0.8, font = 2, col = "#8B0000")
+text(5, 3.2, "1 nation (China) supplies 46% of all US critical minerals", cex = 0.8, col = "#2d2d2d")
+text(5, 2.7, "No other single nation poses the same level of supply chain risk", cex = 0.8, col = "#2d2d2d", font = 3)
+
+# Small red accent
+rect(4, 2.0, 6, 2.1, col = "#8B0000", border = NA)
+```
+
+## The Core Truth
+
+### America's Critical Minerals Pipeline Runs Through Adversaries
+
+```{r}
+#| message: false
+
+final_takeaway <- critical_minerals %>%
+  summarise(
+    competitor_pct = round(sum(primary_alignment == "Competitor")/n() * 100, 0),
+    ally_pct = round(sum(primary_alignment == "Ally")/n() * 100, 0),
+    neutral_pct = round(sum(primary_alignment == "Neutral")/n() * 100, 0)
+  ) %>%
+  pivot_longer(everything(), names_to = "alignment", values_to = "percentage") %>%
+  mutate(alignment = case_when(
+    alignment == "competitor_pct" ~ "COMPETITOR NATIONS",
+    alignment == "ally_pct" ~ "ALLY NATIONS", 
+    alignment == "neutral_pct" ~ "NEUTRAL NATIONS"
+  )) %>%
+  ggplot(aes(x = alignment, y = percentage, fill = alignment)) +
+  geom_col(width = 0.5) +
+  geom_hline(yintercept = 50, linetype = "dashed", color = "#8B0000", size = 1) +
+  geom_text(aes(label = paste0(percentage, "%")), 
+            vjust = -0.5, size = 8, fontface = "bold") +
+  scale_fill_manual(values = c("COMPETITOR NATIONS" = "#8B0000",
+                               "NEUTRAL NATIONS" = "#D3D3D3",
+                               "ALLY NATIONS" = "#2c3e50")) +
+  scale_y_continuous(limits = c(0, 55), breaks = seq(0, 50, 10)) +
+  labs(title = "ALMOST HALF OF OUR CRITICAL MINERALS COME FROM COMPETITORS",
+       subtitle = paste0("Only 22% come from allied nations | Competitor threshold: ", competitor_pct, "%"),
+       x = "",
+       y = "Percentage of Critical Minerals (%)",
+       caption = "Competitor nations include China and Russia") +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = 0.5, face = "bold", size = 14, color = "#8B0000"),
+        plot.subtitle = element_text(hjust = 0.5, size = 11),
+        axis.text = element_text(size = 11, face = "bold"),
+        axis.title.y = element_text(size = 10),
+        panel.grid.major.x = element_blank())
+final_takeaway
+```
+
+
+## The Risk Score Methodology
+
+### How We Calculate Supply Chain Vulnerability
+
+```{r}
+#| message: false
+
+par(mfrow = c(1, 3), mar = c(2, 2, 3, 2), bg = "#E8EDE0", cex.main = 1.4)
+
+# Panel 1: Formula
+plot(1, type = "n", axes = FALSE, xlab = "", ylab = "", xlim = c(0, 10), ylim = c(0, 10))
+rect(0.5, 0.5, 9.5, 9.5, col = "#FFFFFF", border = "#8B0000", lwd = 2)
+text(5, 8.5, "RISK FORMULA", cex = 1.3, font = 2, col = "#8B0000")
+text(5, 6.5, "Risk = Import % × Alignment Weight", cex = 1.1, font = 2)
+text(5, 4.5, "Alignment Weights:", cex = 1.2, font = 2)
+text(5, 3.8, "• Competitor = 3", cex = 1.1)
+text(5, 3.2, "• Neutral = 2", cex = 1.1)
+text(5, 2.6, "• Ally = 1", cex = 1.1)
+text(5, 2.0, "• Domestic = 0", cex = 1.1)
+title("CALCULATION", col.main = "#8B0000", font.main = 2)
+
+# Panel 2: Example
+plot(1, type = "n", axes = FALSE, xlab = "", ylab = "", xlim = c(0, 10), ylim = c(0, 10))
+rect(0.5, 0.5, 9.5, 9.5, col = "#FFFFFF", border = "#8B0000", lwd = 2)
+text(5, 8.5, "REAL EXAMPLE", cex = 1.3, font = 2, col = "#8B0000")
+text(5, 6.8, "Gallium", cex = 1.2, font = 2, col = "#8B0000")
+text(5, 5.8, "Import % = 100%", cex = 1.1)
+text(5, 5.1, "Supplier = China (Competitor)", cex = 1.0)
+text(5, 4.4, "Weight = 3", cex = 1.1)
+text(5, 3.4, "Risk = 100% × 3 = 3.0", cex = 1.1, font = 2, col = "#8B0000")
+text(5, 2.4, "CRITICAL STRESS", cex = 1.1, font = 2, col = "#8B0000")
+title("MAXIMUM RISK", col.main = "#8B0000", font.main = 2)
+
+# Panel 3: Scale
+plot(1, type = "n", axes = FALSE, xlab = "", ylab = "", xlim = c(0, 10), ylim = c(0, 10))
+rect(0.5, 0.5, 9.5, 9.5, col = "#FFFFFF", border = "#8B0000", lwd = 2)
+text(5, 8.5, "RISK SCALE", cex = 1.3, font = 2, col = "#8B0000")
+rect(1.5, 5.0, 3.5, 6.5, col = "#1A9850", border = NA)
+text(2.5, 4.3, "Low (0-1)", cex = 1.0)
+rect(4.0, 5.0, 6.0, 6.5, col = "#FEE08B", border = NA)
+text(5.0, 4.3, "Mod (1-2)", cex = 1.0)
+rect(6.5, 5.0, 8.5, 6.5, col = "#D73027", border = NA)
+text(7.5, 4.3, "High (2-3)", cex = 1.0)
+text(5, 2.5, "Higher risk = Greater", cex = 1.2)
+text(5, 2.0, "supply vulnerability", cex = 1.2)
+title("INTERPRETATION", col.main = "#8B0000", font.main = 2)
+```
+
+## The Supply Stress Categories
+
+### 34 Minerals (63%) at High or Critical Risk
+
+```{r}
+#| message: false
+
+risk_summary <- critical_minerals %>%
+  group_by(stress_category) %>%
+  summarise(count = n()) %>%
+  mutate(stress_category = factor(stress_category, 
+                                 levels = c("Critical", "High", "Moderate", "Low")),
+         percentage = count/54 * 100) %>%
+  ggplot(aes(x = stress_category, y = count, fill = stress_category)) +
+  geom_col(width = 0.4) +
+  geom_text(aes(label = paste0(count, "\n(", round(percentage, 0), "%)")), 
+            vjust = -0.5, size = 3.5, fontface = "bold") +  # Changed vjust from -0.2 to -0.5
+  scale_fill_manual(values = c("Critical" = "#8B0000",
+                               "High" = "#c0392b",
+                               "Moderate" = "#f39c12",
+                               "Low" = "#27ae60")) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.25))) +  # ADD THIS - extends y-axis by 25% for text
+  labs(title = "SUPPLY STRESS LEVELS: 63% AT HIGH OR CRITICAL",
+       subtitle = "Critical = 100% import from competitors | High = ≥75% import from Competitor/Neutral",
+       x = "Stress Category",
+       y = "Number of Minerals",
+       caption = paste0("Critical minerals requiring immediate attention: ", 
+                        sum(critical_minerals$stress_category == "Critical"))) +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = 0.5, face = "bold", size = 14, color = "#8B0000",
+                                  margin = margin(b = 15)),
+        plot.subtitle = element_text(hjust = 0.5, size = 9,
+                                     margin = margin(b = 30)),
+        axis.text = element_text(size = 11, face = "bold"),
+        panel.grid.major.x = element_blank())
+
+risk_summary
+```
+
+
+## The Highest Risk Minerals
+
+### 18 Critical-Stress Minerals (100% from Competitors)
+
+```{r}
+#| message: false
+# Create bubble chart with supplier-specific colors
+high_risk <- critical_minerals %>%
+  filter(risk_score > 2.5) %>%
+  mutate(
+    supplier_color = case_when(
+      primary_supplier == "China" ~ "China (Competitor)",
+      primary_supplier == "Russia" ~ "Russia (Competitor)",
+      primary_supplier == "South Africa" ~ "South Africa (Neutral)",
+      TRUE ~ "Other"
+    ),
+    # Custom color mapping
+    color_value = case_when(
+      primary_supplier == "China" ~ "#8B0000",  # Firebrick (lighter red)
+      primary_supplier == "Russia" ~ "#DC143C",       # Dark Red (original)Dark Red (Competitor)
+      primary_supplier == "Canada" ~ "#2c7fb8",       # Blue for Ally
+      primary_supplier == "South Africa" ~ "#D3D3D3", # Gray for Neutral
+      TRUE ~ "#969696"
+    )
+  ) %>%
+  ggplot(aes(x = risk_score, y = reorder(mineral, risk_score), 
+             size = risk_score, color = supplier_color)) +
+  geom_point(alpha = 0.85, stroke = 1.2) +
+  scale_color_manual(name = "Primary Supplier",
+                     values = c("China (Competitor)" = "#8B0000",
+                                "Russia (Competitor)" = "#DC143C",
+                                "South Africa (Neutral)" = "#D3D3D3")) +
+  scale_size_continuous(range = c(5, 12), guide = "none") +
+  scale_x_continuous(limits = c(2.5, 3.2), breaks = seq(2.5, 3.0, 0.1)) +
+  labs(title = "CRITICAL STRESS MINERALS",
+       subtitle = "Risk scores near maximum (3.0) | 100% import rate for all",
+       x = "Risk Score (Scale: 0-3)",
+       y = "",
+       caption = "Larger bubbles = higher risk | Red = Competitor nations, Blue = Ally, Gray = Neutral") +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "top",
+        legend.margin = margin(b = 20),
+        legend.title = element_text(face = "bold", size = 11),
+        legend.text = element_text(size = 10),
+        plot.title = element_text(hjust = 0.5, face = "bold", size = 14, color = "#8B0000",
+                                  margin = margin(b = 20)),
+        plot.subtitle = element_text(hjust = 0.5, size = 10,
+                                     margin = margin(b = 25)),
+        axis.text.y = element_text(size = 10, face = "bold"),
+        axis.title.x = element_text(face = "bold", margin = margin(t = 10)),
+        panel.grid.major.y = element_line(color = "#e0e0e0", linetype = "dotted"),
+        panel.grid.minor = element_blank())
+
+high_risk
+```
+
+## The Competitor & Neutral Supplier Heatmap
+
+### Which Mineral Categories Face the Greatest Threat?
+
+```{r}
+#| message: false
+
+heatmap_data <- critical_minerals %>%
+  filter(primary_alignment %in% c("Competitor", "Neutral")) %>%
+  mutate(category = case_when(
+    mineral %in% c("Lithium", "Cobalt", "Graphite (natural)", "Nickel", "Manganese") ~ "BATTERY METALS",
+    mineral %in% c("Cerium", "Dysprosium", "Neodymium", "Praseodymium", "Yttrium") ~ "RARE EARTHS",
+    mineral %in% c("Gallium", "Germanium", "Indium", "Silicon (metal)") ~ "SEMICONDUCTORS",
+    mineral %in% c("Arsenic", "Antimony", "Barite", "Bismuth") ~ "INDUSTRIAL MINERALS",
+    TRUE ~ "OTHER STRATEGIC"
+  )) %>%
+  group_by(category, primary_alignment) %>%
+  summarise(
+    avg_risk = mean(risk_score),
+    avg_import = mean(net_import_pct),
+    count = n(),
+    .groups = 'drop'
+  ) %>%
+  ggplot(aes(x = primary_alignment, y = category, fill = avg_risk)) +
+  geom_tile(color = "white", size = 1.5) +
+  geom_text(aes(label = paste0(round(avg_import, 0), "%\nRisk: ", round(avg_risk, 1))),
+            size = 3.5, color = "white", fontface = "bold") +
+  scale_fill_gradient(low = "#f39c12", high = "#8B0000", 
+                      name = "Risk Score",
+                      limits = c(0, 3)) +
+  labs(title = "COMPETITOR & NEUTRAL SUPPLY RISK BY MINERAL CATEGORY",
+       subtitle = "Rare Earths and Semiconductors show highest vulnerability",
+       x = "Supplier Alignment",
+       y = "") +
+  theme_minimal(base_size = 11) +
+  theme(legend.position = "right",
+        plot.title = element_text(hjust = 0.5, face = "bold", size = 13, color = "#8B0000"),
+        plot.subtitle = element_text(hjust = 0.5, size = 10),
+        axis.text = element_text(size = 10, face = "bold"),
+        panel.grid = element_blank())
+
+heatmap_data
+```
+
+## The China Factor
+
+### One Nation Controls Our Most Critical Supply Chains
+
+```{r}
+#| message: false
+
+china_data <- critical_minerals %>%
+  filter(primary_supplier == "China") %>%
+  group_by(stress_category) %>%
+  summarise(count = n()) %>%
+  mutate(percentage = count/25 * 100)
+
+china_plot <- china_data %>%
+  ggplot(aes(x = stress_category, y = count, fill = stress_category)) +
+  geom_col(width = 0.5) +
+  geom_text(aes(label = paste0(count, "\n(", round(percentage, 0), "%)")), 
+            vjust = -0.05, size = 3, fontface = "bold") +
+  scale_fill_manual(values = c("Critical" = "#8B0000", "High" = "#c0392b", "Moderate" = "#f39c12")) +
+  labs(title = "CHINA'S GRIP: 25 MINERALS, 18 AT CRITICAL STRESS",
+       subtitle = paste0("Of China's 25 supplied minerals, ", 
+                         sum(china_data$stress_category == "Critical"), 
+                         " are at Critical stress (100% import from competitor)"),
+       x = "Stress Category",
+       y = "Number of Minerals (China-supplied only)",
+       caption = "China is the dominant supplier for Rare Earths, Battery Metals, and Semiconductors") +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = 0.5, face = "bold", size = 13, color = "#8B0000",
+                                  margin = margin(b = 23)),  # FIX 1: Space below title
+        plot.subtitle = element_text(hjust = 0.5, size = 10,
+                                     margin = margin(b = 30)),  # FIX 1: Space below subtitle
+        plot.caption = element_text(hjust = 0.5, size = 9,
+                                    margin = margin(t = 15)),  # FIX 2: Push caption down
+        axis.text = element_text(face = "bold"))
+
+china_plot
+
+```
+
+## Two Vulnerabilities: Rates vs Volume
+
+### High-Risk Minerals vs High-Volume Supply Lines
+
+```{r}
+#| message: false
+library(gridExtra)
+library(ggrepel)
+
+
+# For the plot - remove "3" from x-axis and show China in legend
+p1 <- critical_minerals %>%
+  filter(primary_alignment == "Competitor") %>%
+  arrange(desc(risk_score)) %>%
+  slice(1:10) %>%
+  mutate(mineral = fct_reorder(mineral, risk_score)) %>%
+  ggplot(aes(x = risk_score, y = mineral, fill = primary_supplier)) +  # Changed fill to primary_supplier
+  geom_bar(stat = "identity", width = 0.7) +
+  geom_text(aes(label = round(risk_score, 1)), 
+            hjust = -0.3, size = 3.5, fontface = "bold", color = "#2d2d2d") +
+  scale_fill_manual(values = c("China" = "#8B0000", 
+                               "Russia" = "#8B0000",
+                               "South Africa" = "#A9A9A9"),
+                    name = "Primary Supplier") +
+  scale_x_continuous(limits = c(0, 3.2), 
+                     breaks = c(0, 0.5, 1.0, 1.5, 2.0, 2.5),  # Removed 3.0
+                     labels = c("0", "0.5", "1.0", "1.5", "2.0", "2.5")) +
+  labs(title = "HIGHEST RISK MINERALS", 
+       subtitle = "All supplied by competitor nations (red = China/Russia, gray = South Africa)",
+       x = "Risk Score (Higher = More Vulnerable)",
+       y = NULL,
+       fill = "Supplier") +
+  theme_minimal(base_size = 10) +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 12, color = "#8B0000",
+                                  margin = margin(b = 10)),
+        plot.subtitle = element_text(hjust = 0.5, size = 8,
+                                     margin = margin(b = 15)),
+        axis.text.y = element_text(size = 10, face = "bold"),
+        axis.text.x = element_text(size = 7),
+        axis.title.x = element_text(margin = margin(t = 8)),
+        panel.grid.major.y = element_blank(),
+        legend.position = "bottom",
+        legend.title = element_text(face = "bold", size = 8),
+        legend.text = element_text(size = 8))
+
+# Plot 2: Filled bubble pack
+p2 <- critical_minerals %>%
+  filter(primary_supplier == "China") %>%
+  mutate(risk_category = ifelse(risk_score > 2.99, "Critical", 
+                                ifelse(risk_score > 1.5, "High", "Moderate"))) %>%
+  group_by(risk_category) %>%
+  summarise(count = n(), .groups = 'drop') %>%
+  mutate(percentage = count/sum(count) * 100,
+         risk_category = factor(risk_category, levels = c("Critical", "High", "Moderate"))) %>%
+  ggplot(aes(x = risk_category, y = count, size = count, fill = risk_category)) +
+  geom_point(shape = 21, alpha = 0.85, stroke = 1.5) +
+  geom_text(aes(label = paste0(count, "\n(", round(percentage, 0), "%)")), 
+            size = 4.5, fontface = "bold", color = "white", 
+            nudge_y = c(2, 1.5, 1)) +
+  scale_size_continuous(range = c(18, 35), guide = "none") +
+  scale_fill_manual(values = c("Critical" = "#8B0000", 
+                               "High" = "#c0392b", 
+                               "Moderate" = "#f39c12")) +
+  scale_y_continuous(limits = c(0, 22), expand = expansion(mult = c(0.05, 0.15))) +
+  labs(title = "CHINA'S SUPPLY RISK", 
+       subtitle = "18 of 25 minerals at Critical stress level",
+       x = NULL, y = "Number of Minerals") +
+  theme_minimal(base_size = 10) +
+  theme(plot.title = element_text(face = "bold", hjust = 0.5, size = 12, color = "#1a5276",
+                                  margin = margin(b = 10)),
+        plot.subtitle = element_text(hjust = 0.5, size = 8,
+                                     margin = margin(b = 15)),
+        axis.text = element_text(size = 9, face = "bold"),
+        axis.title.y = element_blank(),
+        axis.title.x = element_text(margin = margin(t = 10)),
+        legend.position = "none",
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor = element_blank())
+
+# Combine plots
+grid.arrange(p1, p2, ncol = 2, 
+             bottom = textGrob(
+               "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n
+KEY INSIGHT: China dominates high-risk supply chains\n
+• 18 minerals at CRITICAL stress (100% import from competitors)\n
+• 25 total minerals supplied by China\n
+• Immediate diversification needed for Critical-stress minerals\n
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+               gp = gpar(fontsize = 10, fontface = "bold", col = "#2d2d2d"),
+               just = "center",
+               hjust = 0.5,
+               vjust = 0.5,
+               x = 0.5,
+               y = 0.4))
+```
+
+
+## Key Findings: What The Data Tells Policymakers
+
+### Four Unavoidable Truths About Critical Mineral Security
+
+
+```{r}
+#| message: false
+
+par(mfrow = c(2, 2), mar = c(3, 3, 3, 3), bg = "#E8EDE0", cex.main = 0.9)
+
+# Finding 1: Competitor Dependence
+plot(1, type = "n", axes = FALSE, xlab = "", ylab = "", xlim = c(0, 10), ylim = c(0, 10))
+rect(0.5, 0.5, 9.5, 9.5, col = "#FFFFFF", border = "#8B0000", lwd = 2)
+text(5, 8, "FINDING 1", cex = 1.3, font = 2, col = "#8B0000")
+text(5, 6.5, "Competitor Dominance", cex = 1.1, font = 2)
+text(5, 5, paste0(competitor_pct, "%"), cex = 2, font = 2, col = "#8B0000")
+text(5, 3.5, "of critical minerals from", cex = 0.85)
+text(5, 2.5, "competitor nations", cex = 0.85)
+text(5, 1.5, "China supplies 25 of 54 minerals", cex = 0.8, font = 3)
+
+# Finding 2: Critical Stress
+plot(1, type = "n", axes = FALSE, xlab = "", ylab = "", xlim = c(0, 10), ylim = c(0, 10))
+rect(0.5, 0.5, 9.5, 9.5, col = "#FFFFFF", border = "#8B0000", lwd = 2)
+text(5, 8, "FINDING 2", cex = 1.3, font = 2, col = "#8B0000")
+text(5, 6.5, "Critical Stress Minerals", cex = 1.1, font = 2)
+text(5, 5, paste0(critical_pct, "%"), cex = 2, font = 2, col = "#8B0000")
+text(5, 3.5, "are at CRITICAL stress level", cex = 0.85)
+text(5, 2.5, "100% imported from competitors", cex = 0.85)
+text(5, 1.5, "Immediate action required", cex = 0.8, font = 3)
+
+# Finding 3: China Concentration
+plot(1, type = "n", axes = FALSE, xlab = "", ylab = "", xlim = c(0, 10), ylim = c(0, 10))
+rect(0.5, 0.5, 9.5, 9.5, col = "#FFFFFF", border = "#8B0000", lwd = 2)
+text(5, 8, "FINDING 3", cex = 1.3, font = 2, col = "#8B0000")
+text(5, 6.5, "Supply Concentration", cex = 1.1, font = 2)
+text(5, 5, "China", cex = 1.8, font = 2, col = "#8B0000")
+text(5, 3.8, "dominates Rare Earths (100%)", cex = 0.85)
+text(5, 2.8, "Battery Metals (Lithium, Cobalt)", cex = 0.85)
+text(5, 1.8, "Semiconductors (Gallium, Germanium)", cex = 0.8)
+
+# Finding 4: Risk Categories
+plot(1, type = "n", axes = FALSE, xlab = "", ylab = "", xlim = c(0, 10), ylim = c(0, 10))
+rect(0.5, 0.5, 9.5, 9.5, col = "#FFFFFF", border = "#8B0000", lwd = 2)
+text(5, 8, "FINDING 4", cex = 1.3, font = 2, col = "#8B0000")
+text(5, 6.5, "Risk Distribution", cex = 1.1, font = 2)
+text(5, 5, "63% High/Critical", cex = 1.2, font = 2, col = "#8B0000")
+text(5, 3.8, "Critical: 18 minerals", cex = 0.85)
+text(5, 3.0, "High: 16 minerals", cex = 0.85)
+text(5, 2.2, "Moderate: 16 minerals", cex = 0.85)
+text(5, 1.4, "Low: 4 minerals", cex = 0.85)
+```
+
+
+## Strategic Recommendations
+
+### Three-Tier Response Based on Risk Level
+
+
+
+```{r}
+#| message: false
+
+recommendations <- data.frame(
+  Priority = c("IMMEDIATE", "SHORT-TERM (6-12 mo)", "LONG-TERM (2-5 yr)"),
+  Target = c("Critical-Stress Minerals (18)", "High-Risk Minerals (16)", "All Strategic Minerals"),
+  Action = c("Expand National Defense Stockpile\nEmergency diversification sourcing\nDiplomatic engagement with allies", 
+             "Domestic mining permits & incentives\nRecycling infrastructure investment\nR&D for substitutes", 
+             "Build allied supply chains\nTrade agreements with neutral nations\nEducation & workforce development"),
+  Expected_Impact = c("6-month supply buffer\nReduce immediate vulnerability\n", 
+                      "Reduce import dependency 25-40%\nCreate circular economy", 
+                      "Long-term supply security\nCompetitive domestic industry")
+)
+
+knitr::kable(recommendations, 
+             caption = "Evidence-Based Policy Response by Risk Category",
+             format = "html",
+             col.names = c("TIMELINE", "TARGET", "ACTION", "EXPECTED IMPACT")) %>%
+  kableExtra::kable_styling(font_size = 11, full_width = TRUE) %>%
+  kableExtra::column_spec(1, bold = TRUE, color = c("#8B0000", "#e67e22", "#1a5276")) %>%
+  kableExtra::row_spec(0, bold = TRUE, background = "#f0f0f0")
+```
+
+##
+
+
+```{r}
+#| message: false
+#| 
+# Load the image
+img2 <- readJPEG("1.jpeg")
+
+# Create the plot
+par(mar = c(1, 1, 1, 1), bg = "#E8EDE0")
+plot(1, type = "n", axes = FALSE, xlab = "", ylab = "", xlim = c(0, 10), ylim = c(0, 10))
+
+# Add image as background (semi-transparent watermark effect) - LARGER and MORE OPAQUE
+rasterImage(img2, xleft = 0.8, xright = 9.5, ybottom = 1.0, ytop = 9.5)
+
+# Add semi-transparent white overlay to make text readable - LESS TRANSPARENT
+rect(0, 0, 14, 14, col = "#FFFFFFB3", border = NA)
+
+# Decorative line
+lines(c(1, 9), c(9.2, 9.2), col = "#8B0000", lwd = 1)
+lines(c(1, 9), c(9.0, 9.0), col = "#8B0000", lwd = 0.5)
+
+# "THANK YOU"
+text(5, 8.2, "THANK YOU", cex = 2.8, font = 2, col = "#8B0000")
+text(5, 7.5, "Questions & Discussion", cex = 1.2, font = 3, col = "#555555")
+
+# Decorative line below
+lines(c(2, 8), c(7.0, 7.0), col = "#D3D3D3", lwd = 0.5)
+
+# Data source
+text(5, 6.2, "Data Source:", cex = 0.9, font = 2, col = "#333333")
+text(5, 5.8, "USGS Mineral Commodity")
+
+# Analysis
+text(5, 5.2, "Analysis:", cex = 0.9, font = 2, col = "#333333")
+text(5, 4.8, paste0("54 critical minerals analyzed | Risk assessment across 3 alignment categories"), 
+     cex = 0.85, col = "#555555")
+
+# Contact
+text(5, 4.2, "Contact:", cex = 0.9, font = 2, col = "#333333")
+text(5, 3.8, "Mehreen Ali Gillani | DATA 608 - Knowledge & Visual Data Analytics", cex = 0.85, col = "#555555")
+
+# Divider
+lines(c(2.5, 7.5), c(3.3, 3.3), col = "#D3D3D3", lwd = 0.5, lty = 2)
+
+# Closing quote
+text(5, 2.7, "\"Our critical minerals supply chain is a national security issue.", 
+     cex = 0.85, font = 3, col = "#8B0000")
+text(5, 2.3, "With 46% coming from competitor nations and 18 minerals at critical stress,", 
+     cex = 0.85, font = 3, col = "#8B0000")
+text(5, 1.9, "the time for strategic diversification and allied partnerships is now.\"", 
+     cex = 0.85, font = 3, col = "#8B0000")
+
+# Small red accent at bottom
+rect(4, 0.8, 6, 1.0, col = "#8B0000", border = NA)
+
+# Professor acknowledgment (optional)
+text(5, 0.4, "Supervised by: Prof. Peter Kowalchuk", cex = 0.65, col = "#999999")
+
+```
